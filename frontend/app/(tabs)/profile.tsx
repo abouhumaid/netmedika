@@ -14,32 +14,11 @@ export default function ProfileScreen() {
 
   const menuItems = [
     {
-      id: 1,
-      title: 'My Orders',
-      icon: 'receipt-outline',
-      color: PharmacyColors.accent,
-      onPress: () => console.log('Orders'),
-    },
-    {
-      id: 2,
-      title: 'Prescriptions',
-      icon: 'document-text-outline',
-      color: PharmacyColors.success,
-      onPress: () => console.log('Prescriptions'),
-    },
-    {
       id: 3,
-      title: 'Saved Addresses',
+      title: 'Delivery Address',
       icon: 'location-outline',
       color: PharmacyColors.warning,
       onPress: () => router.push('/addresses/'),
-    },
-    {
-      id: 4,
-      title: 'Notifications',
-      icon: 'notifications-outline',
-      color: PharmacyColors.primary,
-      onPress: () => console.log('Notifications'),
     },
     {
       id: 6,
@@ -86,22 +65,6 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.editButton}>
             <Ionicons name="create-outline" size={20} color={PharmacyColors.white} />
           </TouchableOpacity>
-        </View>
-
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>12</Text>
-            <Text style={styles.statLabel}>Orders</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardMiddle]}>
-            <Text style={styles.statValue}>3</Text>
-            <Text style={styles.statLabel}>Prescriptions</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>₦45k</Text>
-            <Text style={styles.statLabel}>Spent</Text>
-          </View>
         </View>
       </LinearGradient>
 

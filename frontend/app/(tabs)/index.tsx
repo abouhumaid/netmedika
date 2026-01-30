@@ -30,13 +30,6 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" backgroundColor={PharmacyColors.primary} />
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={PharmacyColors.gradientPrimary} style={styles.header}>
-          <View style={styles.welcomeRow}>
-            <Text style={styles.welcomeText}>Welcome back, </Text>
-            <Text style={styles.userName}>{userName}</Text>
-          </View>
-          <Text style={styles.subtitle}>How can we help you today?</Text>
-        </LinearGradient>
 
         <View style={styles.servicesContainer}>
           <TouchableOpacity style={styles.serviceCard} onPress={handleOrderDrugs}>
@@ -106,26 +99,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-  },
-  welcomeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  welcomeText: {
-    fontSize: 16,
-    color: PharmacyColors.white,
-    opacity: 0.9,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: PharmacyColors.white,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: PharmacyColors.white,
-    opacity: 0.9,
-    marginTop: 8,
   },
   servicesContainer: {
     padding: 20,

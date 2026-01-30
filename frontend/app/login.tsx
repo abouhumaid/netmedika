@@ -49,11 +49,12 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // TODOs:
         // Success - save tokens
         // const { access_token, refresh_token, user } = data;
         // Store tokens in AsyncStorage if needed
         console.log('Login successful:');
-        router.replace('/(tabs)/index');
+        router.push('/(tabs)/');
       } else {
         setAlertType('error');
         setAlertTitle('Login Failed');
@@ -115,7 +116,6 @@ const Login = () => {
         onConfirm={() => {
           setAlertVisible(false);
           if (alertType === 'success') {
-            // Redirect to home or dashboard after successful login
             router.replace('/');
           }
         }}

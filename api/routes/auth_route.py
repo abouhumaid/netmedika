@@ -4,7 +4,6 @@ from datetime import timedelta
 import os
 import jwt
 from schemas.auth_schema import *
-
 from models.auth_model import User, UserRole
 from database import get_db
 from utils.auth_utils import create_token, get_current_user, hash_password, verify_password
