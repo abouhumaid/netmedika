@@ -21,6 +21,7 @@ class RegisterRequest(BaseModel):
         schema_extra = {
             "example": {
                 "email": "user@example.com",
+                "phone": "1234567890",
                 "fullname": "John Doe",
                 "password": "SecurePassword123",
                 "role": "customer"
