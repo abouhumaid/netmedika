@@ -43,7 +43,7 @@ export default function RegisterScreen() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const response = await fetch('http://3.216.23.204:8000/api/v1/auth/register', {
+      const response = await fetch('http://3.216.23.204:8000/netmedika-api/api/v1/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
