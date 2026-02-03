@@ -16,8 +16,7 @@ from database import Base
 from dotenv import load_dotenv
 
 # Import all models for Alembic to detect them
-from models.auth_model import User, UserRole
-from models.user_model import *
+from models.auth_model import *
 from models.order_model import *
 
 load_dotenv()

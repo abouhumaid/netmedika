@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.order_route import router as order_router
 from routes.auth_route import router as auth_router
-from routes.search_route import router as search_router
 
 app = FastAPI()
 
@@ -18,4 +17,3 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(order_router)
-app.include_router(search_router) 

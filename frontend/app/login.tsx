@@ -8,6 +8,7 @@ import CustomInput from '../components/CustomInput';
 import AuthLayout from '../components/AuthLayout';
 import { styles as authStyles } from '../styles/authStyles';
 import { PharmacyColors } from '../constants/Colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type FormData = {
   email: string;
@@ -37,9 +38,7 @@ const Login = () => {
     try {
       const response = await fetch('http://192.168.43.240:8000/api/v1/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
           password: password,
@@ -48,18 +47,19 @@ const Login = () => {
 
       const data = await response.json();
 
-      if (response.ok) {
-        // TODOs:
-        // Success - save tokens
-        // const { access_token, refresh_token, user } = data;
-        // Store tokens in AsyncStorage if needed
+      if (response.ok && data.access_token) {
+        await AsyncStorage.setItem('userToken', data.access_token);
+        const savedToken = await AsyncStorage.getItem('userToken');
         console.log('Login successful:');
         router.push('/(tabs)/');
+        return data;
       } else {
         setAlertType('error');
         setAlertTitle('Login Failed');
         setAlertMessage(data.detail || 'Invalid credentials');
         setAlertVisible(true);
+        
+        
       }
     } catch (error) {
       console.error('Login error:', error);

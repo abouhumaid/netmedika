@@ -51,7 +51,7 @@ export default function RegisterScreen() {
         body: JSON.stringify({
           email: email,
           password: password,
-          fullname: username
+          username: username
         }),
         signal: controller.signal,
       });

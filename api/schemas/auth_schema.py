@@ -2,17 +2,15 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 from enum import Enum
-from uuid import UUID
 
 
 class UserRole(str, Enum):
     CUSTOMER = "customer"
-    PHARMACIST = "pharmacist"
     ADMIN = "admin"
 
 
 class RegisterRequest(BaseModel):
-    fullname: str = Field(..., min_length=2, max_length=100)
+    username: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=255)
     role: Optional[UserRole] = UserRole.CUSTOMER
@@ -22,7 +20,7 @@ class RegisterRequest(BaseModel):
             "example": {
                 "email": "user@example.com",
                 "phone": "1234567890",
-                "fullname": "John Doe",
+                "username": "John Doe",
                 "password": "SecurePassword123",
                 "role": "customer"
             }
@@ -60,8 +58,8 @@ class TokenResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: UUID
-    fullname: str
+    id: int
+    username: str
     email: str
     role: UserRole
     created_at: datetime

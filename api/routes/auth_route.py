@@ -6,10 +6,9 @@ import jwt
 from schemas.auth_schema import *
 from models.auth_model import User, UserRole
 from database import get_db
-from utils.auth_utils import create_token, get_current_user, hash_password, verify_password
+from utils.auth_func import create_token, get_current_user, hash_password, verify_password
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
-
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
@@ -23,7 +22,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
             )
         
         new_user = User(
-            fullname=request.fullname,
+            username=request.username,
             email=request.email,
             password_hash=hash_password(request.password),
             role=UserRole.CUSTOMER

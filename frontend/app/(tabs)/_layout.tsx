@@ -56,7 +56,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cart" size={size} color={color} />
           ),
-          tabBarBadge: 3, // Example badge for cart items
+          // tabBarBadge: 3, // Example badge for cart items
         }}
       />
       <Tabs.Screen

@@ -1,47 +1,34 @@
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
+from pydantic import Field
 from pydantic import BaseModel
 from models.order_model import *
 
-class MedicationItem(BaseModel):
-    medication_name: str
-    quantity: int
-    dosage: Optional[str] = None
+class OderStatus(str):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
 
 class CreateOrderRequest(BaseModel):
-    user_id: str
-    medications: List[MedicationItem]
-    delivery_address: str
-
-class MedicationItemResponse(BaseModel):
+    # user_id: int
     medication_name: str
-    dosage: Optional[str]
-    quantity: int
-    
-    class Config:
-        from_attributes = True
+    # quantity: int
+    # delivery_address: str
 
 class OrderResponse(BaseModel):
     order_id: str
-    user_id: str
+    user_id: int
+    medication_name: Optional[str]
+    prescription_image: Optional[str]
+    quantity: int = Field(1, ge=1, le=99)  
     status: OrderStatus
-    prescription_required: bool
-    prescription_status: Optional[PrescriptionStatus]
-    medications: List[MedicationItemResponse] = []
-    delivery_address: str
     created_at: datetime
+    updated_at: datetime
     message: str
-    
-    
+
     class Config:
         from_attributes = True
 
-class PrescriptionUploadResponse(BaseModel):
-    order_id: str
-    order_number: str
-    status: str
-    prescription_status: str
-    prescription_url: Optional[str]
-    matched_pharmacies: int
-    message: str
-    next_step: str
+class OrderUpdateQuantity(BaseModel):
+    quantity: int = Field(..., ge=1, le=99)
