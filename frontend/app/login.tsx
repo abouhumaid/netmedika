@@ -36,7 +36,7 @@ const Login = () => {
     setLoading(true);
     const { email, password } = formData;
     try {
-      const response = await fetch('http://192.168.43.240:8000/api/v1/auth/login', {
+      const response = await fetch('http://3.216.23.204:8000/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

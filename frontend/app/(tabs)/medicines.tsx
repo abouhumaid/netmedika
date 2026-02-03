@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PharmacyColors } from '../../constants/Colors';
 import * as ImagePicker from 'expo-image-picker';
 
-const API_URL = 'http://192.168.43.240:8000';
+const API_URL = 'http://3.216.23.204:8000';
 
 export default function MedicinesScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
