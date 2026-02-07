@@ -1,3 +1,4 @@
+// docker pull techworldwithnana/youtube:linux-tutorial
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
@@ -17,7 +18,7 @@ import { PharmacyColors, CommonStyles } from '../../constants/Colors';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://3.216.23.204:8000';
+const API_URL = 'http://192.168.43.240:8000';
 
 interface Order {
   order_id: string;

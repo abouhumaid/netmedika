@@ -16,6 +16,17 @@ export default function RootLayout() {
         <Stack.Screen name="register" />
         <Stack.Screen name="forgot-password" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(addresses)" 
+        options={
+          {
+            headerShown: true,
+            headerTitle: 'Manage Addresses',
+            headerStyle: {
+              backgroundColor: '#4CAF50',
+            },
+            headerTintColor: '#fff',
+          }}
+        />
       </Stack>  
       <Toast />
     </SafeAreaView>

@@ -87,14 +87,7 @@ export default function ProfileScreen() {
       title: 'Delivery Address',
       icon: 'location-outline',
       color: PharmacyColors.warning || '#FF9800',
-      onPress: () => Alert.alert('Coming Soon', 'This Option will be available soon'),
-    },
-    {
-      id: 4,
-      title: 'Payment Methods',
-      icon: 'card-outline',
-      color: '#9C27B0',
-      onPress: () => Alert.alert('Coming Soon', 'Payment methods will be available soon'),
+      onPress: () => router.push('/addresses/'),
     },
     {
       id: 5,
@@ -116,7 +109,6 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={PharmacyColors.primary} />
       
-
       <ScrollView 
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -136,8 +128,9 @@ export default function ProfileScreen() {
             colors={['#FFFFFF', '#F8F9FA']}
             style={styles.profileCardGradient}
           >
-            {/* Avatar Section */}
-            <View style={styles.avatarSection}>
+            {/* Avatar and User Info in Row */}
+            <View style={styles.profileRow}>
+              {/* Avatar Section */}
               <Animated.View
                 style={[
                   styles.avatarContainer,
@@ -149,7 +142,7 @@ export default function ProfileScreen() {
                   style={styles.avatar}
                 >
                   <Text style={styles.avatarText}>
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    {user?.name?.charAt(0).toUpperCase() || 'M'}
                   </Text>
                 </LinearGradient>
                 
@@ -158,6 +151,25 @@ export default function ProfileScreen() {
                   <View style={styles.onlineDot} />
                 </View>
               </Animated.View>
+
+              {/* User Info Section */}
+              <View style={styles.userInfoSection}>
+                <Text style={styles.userName} numberOfLines={1}>
+                  {user?.name || 'Mk Ismail'}
+                </Text>
+                <View style={styles.contactRow}>
+                  <Ionicons name="mail-outline" size={13} color={PharmacyColors.textSecondary} />
+                  <Text style={styles.userEmail} numberOfLines={1}>
+                    {user?.email || 'ismailmk@email.com'}
+                  </Text>
+                </View>
+                <View style={styles.contactRow}>
+                  <Ionicons name="call-outline" size={13} color={PharmacyColors.textSecondary} />
+                  <Text style={styles.userPhone} numberOfLines={1}>
+                    {user?.phone || '+234 800 123 4567'}
+                  </Text>
+                </View>
+              </View>
 
               {/* Edit Button */}
               <TouchableOpacity
@@ -172,19 +184,6 @@ export default function ProfileScreen() {
                   <Ionicons name="create-outline" size={18} color={PharmacyColors.white} />
                 </LinearGradient>
               </TouchableOpacity>
-            </View>
-
-            {/* User Info */}
-            <View style={styles.userInfoSection}>
-              <Text style={styles.userName}>{user?.name || 'Mk Ismail'}</Text>
-              <View style={styles.emailContainer}>
-                <Ionicons name="mail-outline" size={14} color={PharmacyColors.textSecondary} />
-                <Text style={styles.userEmail}>{user?.email || 'ismailmk@email.com'}</Text>
-              </View>
-              <View style={styles.phoneContainer}>
-                <Ionicons name="call-outline" size={14} color={PharmacyColors.textSecondary} />
-                <Text style={styles.userPhone}>{user?.phone || '+234 800 123 4567'}</Text>
-              </View>
             </View>
           </LinearGradient>
         </Animated.View>
@@ -259,19 +258,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PharmacyColors.background,
   },
-  header: {
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: PharmacyColors.white,
-    textAlign: 'center',
-  },
   content: {
     flex: 1,
   },
@@ -286,38 +272,38 @@ const styles = StyleSheet.create({
     ...CommonStyles.shadowMedium,
   },
   profileCardGradient: {
-    padding: 24,
+    padding: 20,
   },
-  avatarSection: {
+  profileRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    position: 'relative',
   },
   avatarContainer: {
     position: 'relative',
+    marginRight: 16,
   },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: PharmacyColors.white,
     ...CommonStyles.shadow,
   },
   avatarText: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: 'bold',
     color: PharmacyColors.white,
   },
   onlineIndicator: {
     position: 'absolute',
-    bottom: 5,
-    right: 5,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    bottom: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: PharmacyColors.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -325,15 +311,38 @@ const styles = StyleSheet.create({
     borderColor: PharmacyColors.white,
   },
   onlineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#4CAF50',
   },
+  userInfoSection: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: PharmacyColors.textPrimary,
+    marginBottom: 6,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 13,
+    color: PharmacyColors.textSecondary,
+    marginLeft: 6,
+    flex: 1,
+  },
+  userPhone: {
+    fontSize: 13,
+    color: PharmacyColors.textSecondary,
+    marginLeft: 6,
+  },
   editButton: {
-    position: 'absolute',
-    top: 0,
-    right: width / 2 - 120,
     borderRadius: 18,
     overflow: 'hidden',
     ...CommonStyles.shadow,
@@ -344,61 +353,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  userInfoSection: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: PharmacyColors.textPrimary,
-    marginBottom: 8,
-  },
-  emailContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: PharmacyColors.textSecondary,
-    marginLeft: 6,
-  },
-  phoneContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  userPhone: {
-    fontSize: 14,
-    color: PharmacyColors.textSecondary,
-    marginLeft: 6,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: PharmacyColors.borderGray,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: PharmacyColors.accent,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: PharmacyColors.textSecondary,
-    fontWeight: '500',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: PharmacyColors.borderGray,
   },
   sectionTitle: {
     fontSize: 16,
