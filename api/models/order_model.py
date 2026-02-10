@@ -23,6 +23,11 @@ class Order(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), 
     nullable=False)
     medication_name = Column(String, nullable=True)
+    #TOOOs:
+    # dosage_form
+    # strength
+    # frequency
+    # duration
     prescription_image = Column(String, nullable=True) 
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, nullable=False)
     quantity = Column(Integer, default=1)
