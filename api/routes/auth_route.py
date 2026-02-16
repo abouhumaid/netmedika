@@ -6,7 +6,7 @@ import jwt
 from schemas.auth_schema import *
 from models.auth_model import User, UserRole
 from database import get_db
-from utils.auth_func import create_token, get_current_user, hash_password, verify_password
+from helpers.auth import create_token, get_current_user, hash_password, verify_password
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
@@ -32,8 +32,11 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
         
-        access_token_expires = timedelta(minutes=int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30)))
+        access_token_expires = timedelta(
+            minutes=int(
+                os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30)
+            )
+        )
         access_token = create_token(
             data={"sub": str(new_user.id)},
             expires_delta=access_token_expires

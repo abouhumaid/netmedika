@@ -14,6 +14,7 @@ import {
   SafeAreaView,
   Platform,
   ActionSheetIOS,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PharmacyColors } from '../../constants/Colors';
@@ -21,11 +22,44 @@ import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = 'http://192.168.43.240:8000';
 
+// Dropdown options
+const MEDICINE_TYPES = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Drops'];
+const DOSAGE_OPTIONS = [
+  'TDS-1/7',
+  'TDS-2/7',
+  'TDS-3/7',
+  'TDS-4/7',
+  'TDS-5/7',
+  'TDS-6/7',
+  'TDS-7/7',
+  'BD-1/7',
+  'BD-2/7',
+  'BD-3/7',
+  'BD-4/7',
+  'BD-5/7',
+  'BD-6/7',
+  'BD-7/7',
+  'OD-1/7',
+  'OD-2/7',
+  'OD-3/7',
+  'OD-4/7',
+  'OD-5/7',
+  'OD-6/7',
+  'OD-7/7',
+];
+
 export default function MedicinesScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
+  const [medicineType, setMedicineType] = useState('');
+  const [strength, setStrength] = useState('');
+  const [dosage, setDosage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Modal states for dropdowns
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [showDosageModal, setShowDosageModal] = useState(false);
 
   // Animations
   const searchScaleAnim = useRef(new Animated.Value(1)).current;
@@ -71,6 +105,16 @@ export default function MedicinesScreen({ navigation }: any) {
   };
 
   // ===============================
+  // CHECK IF FORM IS COMPLETE
+  // ===============================
+  const isFormComplete = () => {
+    return medicineType.trim() !== '' && 
+           search.trim() !== '' && 
+           strength.trim() !== '' && 
+           dosage.trim() !== '';
+  };
+
+  // ===============================
   // SAVE ORDER FUNCTION
   // ===============================
   const saveOrder = async (medicineName?: string, imageUri?: string) => {
@@ -92,6 +136,9 @@ export default function MedicinesScreen({ navigation }: any) {
       
       if (medicineName) {
         formData.append('medicine_name', medicineName);
+        formData.append('medicine_type', medicineType);
+        formData.append('strength', strength);
+        formData.append('dosage', dosage);
       }
       
       if (imageUri) {
@@ -125,6 +172,9 @@ export default function MedicinesScreen({ navigation }: any) {
       if (response.ok) {
         Alert.alert('Success', `Order created! Order ID: ${data.order_id}`);
         setSearch('');
+        setMedicineType('');
+        setStrength('');
+        setDosage('');
         setUploadedImage(null);
       } else {
         throw new Error(data.detail || 'Failed to create order');
@@ -141,8 +191,8 @@ export default function MedicinesScreen({ navigation }: any) {
   // SEARCH HANDLER
   // ===============================
   const handleSaveSearch = () => {
-    if (!search.trim()) {
-      Alert.alert('Error', 'Please enter medicine name');
+    if (!isFormComplete()) {
+      Alert.alert('Error', 'Please fill all fields');
       return;
     }
     saveOrder(search);
@@ -224,6 +274,53 @@ export default function MedicinesScreen({ navigation }: any) {
   };
 
   // ===============================
+  // RENDER DROPDOWN MODAL
+  // ===============================
+  const renderDropdownModal = (
+    visible: boolean,
+    onClose: () => void,
+    options: string[],
+    onSelect: (value: string) => void,
+    title: string
+  ) => (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color={PharmacyColors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScroll}>
+            {options.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.modalOption}
+                onPress={() => {
+                  onSelect(option);
+                  onClose();
+                }}
+              >
+                <Text style={styles.modalOptionText}>{option}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
+  // ===============================
   // RENDER
   // ===============================
   return (
@@ -249,7 +346,21 @@ export default function MedicinesScreen({ navigation }: any) {
 
         {/* Search Section */}
         <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ scale: searchScaleAnim }, { translateY: slideAnim }] }]}>
+          {/* Medicine Type Dropdown + Medicine Name */}
           <View style={[styles.searchBox, isFocused && styles.searchBoxFocused]}>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowTypeModal(true)}
+              disabled={isProcessing}
+            >
+              <Text style={[styles.dropdownText, !medicineType && styles.dropdownPlaceholder]}>
+                {medicineType || 'Type'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={PharmacyColors.gray} />
+            </TouchableOpacity>
+            
+            <View style={styles.dividerVertical} />
+            
             <TextInput
               style={styles.input}
               placeholder="Enter medicine name..."
@@ -261,21 +372,54 @@ export default function MedicinesScreen({ navigation }: any) {
               returnKeyType="done"
               editable={!isProcessing}
             />
-            <Pressable
-              onPress={handleSaveSearch}
-              style={[
-                styles.searchButton,
-                (!search.trim() || isProcessing) && styles.searchButtonDisabled
-              ]}
-              disabled={isProcessing || !search.trim()}
-            >
-              {isProcessing ? (
-                <ActivityIndicator size="small" color={PharmacyColors.white} />
-              ) : (
-                <Text style={styles.searchButtonText}>Order</Text>
-              )}
-            </Pressable>
           </View>
+
+          {/* Strength Field - Visible only if type is selected and medicine name is filled */}
+          {medicineType && search.trim() && (
+            <Animated.View style={styles.fieldContainer}>
+              <TextInput
+                style={styles.fullWidthInput}
+                placeholder="Strength (e.g., 500mg, 10ml, 5%)"
+                placeholderTextColor={PharmacyColors.gray}
+                value={strength}
+                onChangeText={setStrength}
+                returnKeyType="done"
+                editable={!isProcessing}
+              />
+            </Animated.View>
+          )}
+
+          {/* Dosage Dropdown - Visible only if strength is filled */}
+          {medicineType && search.trim() && strength.trim() && (
+            <Animated.View style={styles.fieldContainer}>
+              <TouchableOpacity
+                style={styles.fullWidthDropdown}
+                onPress={() => setShowDosageModal(true)}
+                disabled={isProcessing}
+              >
+                <Text style={[styles.dropdownText, !dosage && styles.dropdownPlaceholder]}>
+                  {dosage || 'Select Dosage'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color={PharmacyColors.gray} />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {/* Order Button - Below all fields */}
+          <Pressable
+            onPress={handleSaveSearch}
+            style={[
+              styles.orderButton,
+              !isFormComplete() && styles.orderButtonDisabled
+            ]}
+            disabled={isProcessing || !isFormComplete()}
+          >
+            {isProcessing ? (
+              <ActivityIndicator size="small" color={PharmacyColors.white} />
+            ) : (
+              <Text style={styles.orderButtonText}>Place Order</Text>
+            )}
+          </Pressable>
         </Animated.View>
 
         {/* Divider */}
@@ -326,6 +470,22 @@ export default function MedicinesScreen({ navigation }: any) {
           <Text style={styles.infoText}>Upload a clear photo of your prescription for faster processing</Text>
         </Animated.View>
       </ScrollView>
+
+      {/* Modals */}
+      {renderDropdownModal(
+        showTypeModal,
+        () => setShowTypeModal(false),
+        MEDICINE_TYPES,
+        setMedicineType,
+        'Select Medicine Type'
+      )}
+      {renderDropdownModal(
+        showDosageModal,
+        () => setShowDosageModal(false),
+        DOSAGE_OPTIONS,
+        setDosage,
+        'Select Dosage'
+      )}
     </SafeAreaView>
   );
 }
@@ -339,26 +499,108 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 24, paddingTop: Platform.OS === 'ios' ? 20 : 40, paddingBottom: 100 },
   headerContainer: { alignItems: 'center', marginBottom: 32 },
   headerText: { fontSize: 28, fontWeight: 'bold', color: PharmacyColors.textPrimary, textAlign: 'center', letterSpacing: 0.5 },
-  subHeaderText: { fontSize: 15, color: PharmacyColors.textSecondary, textAlign: 'center', marginTop: 8, letterSpacing: 0.3 },
   section: { marginBottom: 24 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: PharmacyColors.white, borderRadius: 16, paddingLeft: 20, paddingRight: 6, paddingVertical: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 6, borderWidth: 2, borderColor: 'transparent' },
+  searchBox: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: PharmacyColors.white, 
+    borderRadius: 16, 
+    paddingVertical: 6,
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.08, 
+    shadowRadius: 12, 
+    elevation: 6, 
+    borderWidth: 2, 
+    borderColor: 'transparent',
+    marginBottom: 12,
+  },
   searchBoxFocused: { borderColor: PharmacyColors.accent, shadowOpacity: 0.15 },
-  input: { flex: 1, fontSize: 17, color: PharmacyColors.textPrimary, fontWeight: '500', letterSpacing: 0.3, paddingVertical: 14 },
-  searchButton: { 
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minWidth: 100,
+  },
+  dropdownText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: PharmacyColors.textPrimary,
+    marginRight: 8,
+  },
+  dropdownPlaceholder: {
+    color: PharmacyColors.gray,
+    fontWeight: '500',
+  },
+  dividerVertical: {
+    width: 1,
+    height: 40,
+    backgroundColor: PharmacyColors.gray + '30',
+  },
+  input: { 
+    flex: 1, 
+    fontSize: 17, 
+    color: PharmacyColors.textPrimary, 
+    fontWeight: '500', 
+    letterSpacing: 0.3, 
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  fieldContainer: {
+    marginBottom: 12,
+  },
+  fullWidthInput: {
+    backgroundColor: PharmacyColors.white,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    fontSize: 17,
+    color: PharmacyColors.textPrimary,
+    fontWeight: '500',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  fullWidthDropdown: {
+    backgroundColor: PharmacyColors.white,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  orderButton: { 
     backgroundColor: PharmacyColors.accent, 
-    paddingHorizontal: 24,
-    height: 48, 
-    borderRadius: 12, 
+    paddingVertical: 18,
+    borderRadius: 16, 
     justifyContent: 'center', 
     alignItems: 'center',
-    minWidth: 90,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  searchButtonDisabled: {
+  orderButtonDisabled: {
     backgroundColor: PharmacyColors.gray + '60',
     opacity: 0.6,
   },
-  searchButtonText: {
-    fontSize: 16,
+  orderButtonText: {
+    fontSize: 18,
     fontWeight: '700',
     color: PharmacyColors.white,
     letterSpacing: 0.5,
@@ -393,5 +635,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: PharmacyColors.white,
     fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: PharmacyColors.white,
+    borderRadius: 20,
+    width: '100%',
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: PharmacyColors.gray + '30',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: PharmacyColors.textPrimary,
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: PharmacyColors.gray + '20',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: PharmacyColors.textPrimary,
+    fontWeight: '500',
   },
 });

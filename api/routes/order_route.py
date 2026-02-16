@@ -6,7 +6,7 @@ import os
 import shutil
 from pathlib import Path
 from models.auth_model import User
-from utils.auth_func import get_current_user
+from helpers.auth import get_current_user
 from schemas.order_schema import *
 from models.order_model import Order, OrderStatus
 from database import get_db
@@ -15,7 +15,6 @@ from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/orders", tags=["orders"]) 
 
-# Create uploads directory if it doesn't exist
 UPLOAD_DIR = Path("uploads/prescriptions")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -27,21 +26,19 @@ async def create_order(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        # Validate that at least one input is provided
         if not medicine_name and not uploaded_image:
             raise HTTPException(
                 status_code=400,
                 detail="Please provide either medicine name or prescription image"
             )
 
-        # Generate IDs
+    
         order_id = f"ORD_{uuid.uuid4().hex[:12].upper()}"
         user_id = current_user.id if current_user else None
         
-        # Handle image upload if provided
+    
         image_path = None
         if uploaded_image:
-            # Validate file type
             allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
             file_ext = os.path.splitext(uploaded_image.filename)[1].lower()
             
@@ -51,18 +48,14 @@ async def create_order(
                     detail="Invalid file type. Only images are allowed (jpg, jpeg, png, gif, webp)"
                 )
             
-            # Generate unique filename
             unique_filename = f"{order_id}_{uuid.uuid4().hex[:8]}{file_ext}"
             image_path = UPLOAD_DIR / unique_filename
             
-            # Save the uploaded file
             with image_path.open("wb") as buffer:
                 shutil.copyfileobj(uploaded_image.file, buffer)
             
-            # Store relative path in database
             image_path = f"uploads/prescriptions/{unique_filename}"
 
-        # Create order
         new_order = Order(
             order_id=order_id,
             user_id=user_id,
@@ -105,11 +98,7 @@ async def get_my_orders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Get all orders for the currently logged-in user
-    """
     try:
-        # Query orders with ordering by creation date (newest first)
         orders = (
             db.query(Order)
             .filter(Order.user_id == current_user.id)
