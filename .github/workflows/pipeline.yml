@@ -35,7 +35,7 @@ jobs:
     # 4. Run tests (if you have)
     - name: Run tests
       run: |
-        pytest || echo "No tests yet"
+        pytest
 
     # 5. Build app (check if it runs)
     - name: Check app startup
