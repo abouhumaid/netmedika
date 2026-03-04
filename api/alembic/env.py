@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 # Import all models for Alembic to detect them
 from models.auth_model import *
 from models.order_model import *
+from models.token_model import *
 
 load_dotenv()
 

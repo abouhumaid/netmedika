@@ -18,7 +18,6 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRole), default=UserRole.CUSTOMER, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    last_login = Column(String(100), nullable=True)
     
     orders = relationship("Order",back_populates="owner",cascade="all, delete-orphan")

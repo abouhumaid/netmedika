@@ -19,9 +19,12 @@ class CreateOrderRequest(BaseModel):
 class OrderResponse(BaseModel):
     order_id: str
     user_id: int
+    dosage_form: Optional[str]
     medication_name: Optional[str]
+    strength: Optional[str]
+    frequency: Optional[str]
     prescription_image: Optional[str]
-    quantity: int = Field(1, ge=1, le=99)  
+    quantity: int = Field(1, ge=1, le=99)
     status: OrderStatus
     created_at: datetime
     updated_at: datetime

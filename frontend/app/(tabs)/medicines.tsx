@@ -135,10 +135,10 @@ export default function MedicinesScreen({ navigation }: any) {
       const formData = new FormData();
       
       if (medicineName) {
+        formData.append('dosage_form', medicineType);
         formData.append('medicine_name', medicineName);
-        formData.append('medicine_type', medicineType);
         formData.append('strength', strength);
-        formData.append('dosage', dosage);
+        formData.append('frequency', dosage);
       }
       
       if (imageUri) {

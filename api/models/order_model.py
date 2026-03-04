@@ -22,12 +22,10 @@ class Order(Base):
     order_id = Column(String(50), unique=True, nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), 
     nullable=False)
+    dosage_form = Column(String, nullable=True)
     medication_name = Column(String, nullable=True)
-    #TOOOs:
-    # dosage_form
-    # strength
-    # frequency
-    # duration
+    strength = Column(String, nullable=True)
+    frequency = Column(String, nullable=True)
     prescription_image = Column(String, nullable=True) 
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, nullable=False)
     quantity = Column(Integer, default=1)
@@ -38,7 +36,7 @@ class Order(Base):
     total_amount = Column(Float, default=0.0)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
     owner = relationship("User", back_populates="orders")

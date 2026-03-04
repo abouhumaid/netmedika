@@ -6,7 +6,7 @@ import os
 import shutil
 from pathlib import Path
 from models.auth_model import User
-from helpers.auth import get_current_user
+from dependencies.auth import get_current_user
 from schemas.order_schema import *
 from models.order_model import Order, OrderStatus
 from database import get_db
@@ -21,8 +21,14 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 @router.post("/create", response_model=OrderResponse, status_code=201)
 async def create_order(
     db: Annotated[Session, Depends(get_db)],
+    dosage_form: str | None = Form(None),
     medicine_name: str | None = Form(None),
+    strength: str | None = Form(None),
+    frequency: str | None = Form(None),
     uploaded_image: UploadFile | None = File(None),
+    quantity: int = Form(1),
+    delivery_fee: float = Form(0.0),
+    total_amount: float = Form(0.0),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -56,14 +62,19 @@ async def create_order(
             
             image_path = f"uploads/prescriptions/{unique_filename}"
 
+        # Fix the Order constructor in your route — pass all fields
         new_order = Order(
             order_id=order_id,
             user_id=user_id,
+            dosage_form=dosage_form,
             medication_name=medicine_name,
-            prescription_image=image_path, 
+            strength=strength,
+            frequency=frequency,
+            prescription_image=image_path,
+            quantity=quantity,        # add this (and accept it as a Form param above)
+            delivery_fee=delivery_fee,  # same
+            total_amount=total_amount,  # same
             status=OrderStatus.PENDING,
-            created_at=datetime.now(),
-            updated_at=datetime.now()
         )
 
         db.add(new_order)
@@ -73,10 +84,13 @@ async def create_order(
         return OrderResponse(
             order_id=new_order.order_id,
             user_id=new_order.user_id,
+            dosage_form=new_order.dosage_form,
             medication_name=new_order.medication_name,
+            strength=new_order.strength,
+            frequency=new_order.frequency,
             prescription_image=new_order.prescription_image,
             status=new_order.status,
-            created_at=new_order.updated_at,
+            created_at=new_order.created_at,
             updated_at=new_order.updated_at,
             message="Order created successfully"
         )
