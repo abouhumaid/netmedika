@@ -88,55 +88,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActionsContainer}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.quickActionCard} onPress={handleUploadPrescription}>
-              <View style={[styles.quickActionIcon, { backgroundColor: PharmacyColors.accent + '20' }]}>
-                <Ionicons name="cloud-upload-outline" size={24} color={PharmacyColors.accent} />
-              </View>
-              <Text style={styles.quickActionText}>Upload{'\n'}Prescription</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickActionCard} onPress={handleViewOrders}>
-              <View style={[styles.quickActionIcon, { backgroundColor: '#4CAF50' + '20' }]}>
-                <Ionicons name="list-outline" size={24} color="#4CAF50" />
-              </View>
-              <Text style={styles.quickActionText}>View{'\n'}Orders</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickActionCard} onPress={() => {
-              Toast.show({
-                type: 'info',
-                text1: 'Coming Soon',
-                text2: 'Track order feature coming soon',
-                position: 'top',
-              });
-            }}>
-              <View style={[styles.quickActionIcon, { backgroundColor: '#FF9800' + '20' }]}>
-                <Ionicons name="location-outline" size={24} color="#FF9800" />
-              </View>
-              <Text style={styles.quickActionText}>Track{'\n'}Order</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.quickActionCard} onPress={() => {
-              Toast.show({
-                type: 'info',
-                text1: 'Coming Soon',
-                text2: 'Help & Support coming soon',
-                position: 'top',
-              });
-            }}>
-              <View style={[styles.quickActionIcon, { backgroundColor: '#9C27B0' + '20' }]}>
-                <Ionicons name="help-circle-outline" size={24} color="#9C27B0" />
-              </View>
-              <Text style={styles.quickActionText}>Help &{'\n'}Support</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Info Banner */}
         <View style={styles.infoBannerContainer}>
           <LinearGradient

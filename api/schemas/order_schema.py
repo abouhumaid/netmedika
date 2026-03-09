@@ -25,6 +25,7 @@ class OrderResponse(BaseModel):
     frequency: Optional[str]
     prescription_image: Optional[str]
     quantity: int = Field(1, ge=1, le=99)
+    delivery_address: str | None = None
     status: OrderStatus
     created_at: datetime
     updated_at: datetime

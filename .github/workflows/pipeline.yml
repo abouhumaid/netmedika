@@ -1,43 +1,45 @@
-name: FastAPI CI/CD Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
 
 jobs:
-  test-and-build:
-
+  test:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: api   
-
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 1. Get your code
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-    # 2. Setup Python
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest httpx  # httpx is usually needed for FastAPI Testing
 
-    # 3. Install dependencies
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Run tests
+        run: |
+          pytest
 
-    # 4. Run tests (if you have)
-    - name: Run tests
-      run: |
-        pytest
+  build-and-push:
+    needs: test  # Only runs if tests pass
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 5. Build app (check if it runs)
-    - name: Check app startup
-      run: |
-        uvicorn app.main:app --help
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        run: |
+          docker build -t my-fastapi-app:latest .
+
+      # Optional: Add login and push steps here if using Docker Hub/GHCR

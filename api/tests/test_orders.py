@@ -1,63 +1,53 @@
 import io
+import pytest
 
-def test_create_order_with_name(client):
+def test_create_order_with_medicine_name(client):
+    """Test creating an order using just text fields."""
     response = client.post(
-        "/orders/create",
-        data={"medicine_name": "Paracetamol"}
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Paracetamol",
+            "delivery_address": "123 Main St, Lagos, Nigeria",
+            "quantity": 2
+        }
     )
     assert response.status_code == 201
-    json_data = response.json()
-    assert json_data["medication_name"] == "Paracetamol"
-    assert json_data["order_id"].startswith("ORD_")
-    assert json_data["message"] == "Order created successfully"
+    assert response.json()["medication_name"] == "Paracetamol"
 
-
-def test_create_order_with_image(client):
-    # Simulate file upload
-    file_content = io.BytesIO(b"fake image content")
+def test_create_order_file_too_large(client):
+    """Test the 5MB file limit."""
+    large_file = io.BytesIO(b"0" * (6 * 1024 * 1024)) # 6MB
     response = client.post(
-        "/orders/create",
-        files={"uploaded_image": ("test.png", file_content, "image/png")}
+        "/api/v1/orders/create",
+        data={"delivery_address": "123 Main St, Lagos, Nigeria"},
+        files={"uploaded_image": ("test.jpg", large_file, "image/jpeg")}
     )
-    assert response.status_code == 201
-    json_data = response.json()
-    assert "uploads/prescriptions/" in json_data["prescription_image"]
+    assert response.status_code == 413
+    assert "File too large" in response.json()["detail"]
 
-
-def test_get_my_orders(client):
-    response = client.get("/orders/my-orders")
-    assert response.status_code == 200
-    json_data = response.json()
-    assert json_data["user_id"] == "user_1"
-    assert "orders" in json_data
-
-
-def test_update_order_quantity(client):
-    # First, create an order
-    create_resp = client.post(
-        "/orders/create",
-        data={"medicine_name": "Ibuprofen"}
+def test_create_order_invalid_magic_bytes(client):
+    """Test that we can't fool the system with a fake extension."""
+    fake_image = io.BytesIO(b"not-an-image-content")
+    response = client.post(
+        "/api/v1/orders/create",
+        files={"uploaded_image": ("legit.jpg", fake_image, "image/jpeg")}
     )
-    order_id = create_resp.json()["order_id"]
+    assert response.status_code == 400
+    assert "Invalid file type" in response.json()["detail"]
 
-    # Update quantity
-    update_resp = client.patch(f"/orders/update-quantity/{order_id}", params={"quantity": 5})
-    assert update_resp.status_code == 200
-    json_data = update_resp.json()
-    assert json_data["new_quantity"] == 5
+def test_update_quantity_limits(client):
+    """Test the ge=1, le=99 constraints."""
+    # Test too high
+    response = client.patch("/api/v1/orders/update-quantity/ORD_123?quantity=100")
+    assert response.status_code == 422 # FastAPI built-in validation
+    
+    # Test too low
+    response = client.patch("/api/v1/orders/update-quantity/ORD_123?quantity=0")
+    assert response.status_code == 422
 
-
-def test_delete_order(client):
-    # First, create an order
-    create_resp = client.post(
-        "/orders/create",
-        data={"medicine_name": "Amoxicillin"}
-    )
-    order_id = create_resp.json()["order_id"]
-
-    # Delete the order
-    delete_resp = client.delete(f"/orders/delete/{order_id}")
-    assert delete_resp.status_code == 200
-    json_data = delete_resp.json()
-    assert json_data["success"] is True
-    assert json_data["order_id"] == order_id
+def test_get_my_orders_unauthorized_admin_access(client, mock_user):
+    """Test that a non-admin cannot view someone else's orders."""
+    # current_user.id is 'user_123' via mock_user fixture
+    response = client.get("/api/v1/orders/user/someone_else_id")
+    assert response.status_code == 403
+    assert "Not authorized" in response.json()["detail"]

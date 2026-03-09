@@ -1,139 +1,93 @@
 import pytest
+from fastapi.testclient import TestClient
+from main import app
+from database import get_db
 
+# We assume your test environment handles a clean DB for each run.
+@pytest.fixture
+def client():
+    return TestClient(app)
 
-# ----------------------------
-# Test: Register
-# ----------------------------
+# Helper data
+test_user = {
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "strongpassword123"
+}
 
-def test_register_user(client):
-
-    data = {
-        "username": "adam",
-        "email": "adam@test.com",
-        "password": "password123"
-    }
-
-    response = client.post("/auth/register", json=data)
-
+def test_register_success(client):
+    response = client.post("/api/v1/auth/register", json=test_user)
     assert response.status_code == 201
-
-    body = response.json()
-
-    assert body["message"] == "User registered successfully"
-    assert body["user"]["email"] == data["email"]
-    assert "access_token" in body
-    assert "refresh_token" in body
-
-
-# ----------------------------
-# Test: Register Duplicate
-# ----------------------------
+    assert response.json()["message"] == "Account created"
 
 def test_register_duplicate_email(client):
-
-    data = {
-        "username": "adam2",
-        "email": "adam@test.com",  # same email
-        "password": "password123"
-    }
-
-    response = client.post("/auth/register", json=data)
-
+    # First registration
+    client.post("/api/v1/auth/register", json=test_user)
+    # Second registration with same email
+    response = client.post("/api/v1/auth/register", json=test_user)
     assert response.status_code == 400
-    assert response.json()["detail"] == "Email already registered"
-
-
-# ----------------------------
-# Test: Login
-# ----------------------------
+    assert "Registration failed" in response.json()["detail"]
 
 def test_login_success(client):
-
-    data = {
-        "email": "adam@test.com",
-        "password": "password123"
-    }
-
-    response = client.post("/auth/login", json=data)
-
+    # Ensure user exists
+    client.post("/api/v1/auth/register", json=test_user)
+    
+    response = client.post("/api/v1/auth/login", json={
+        "email": test_user["email"],
+        "password": test_user["password"]
+    })
+    
     assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["user"]["email"] == test_user["email"]
 
-    body = response.json()
-
-    assert body["message"] == "Login successful"
-    assert "access_token" in body
-    assert "refresh_token" in body
-
-
-# ----------------------------
-# Test: Login Failure
-# ----------------------------
-
-def test_login_wrong_password(client):
-
-    data = {
-        "email": "adam@test.com",
-        "password": "wrongpass"
-    }
-
-    response = client.post("/auth/login", json=data)
-
+def test_login_invalid_credentials(client):
+    response = client.post("/api/v1/auth/login", json={
+        "email": "wrong@example.com",
+        "password": "wrongpassword"
+    })
     assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid email or password"
+    assert "Invalid credentials" in response.json()["detail"]
 
+def test_refresh_token_rotation(client):
+    # 1. Register and Login to get a refresh token
+    client.post("/api/v1/auth/register", json=test_user)
+    login_res = client.post("/api/v1/auth/login", json={
+        "email": test_user["email"],
+        "password": test_user["password"]
+    })
+    old_refresh_token = login_res.json()["refresh_token"]
 
-# ----------------------------
-# Test: Refresh Token
-# ----------------------------
+    # 2. Use refresh token to get a new one
+    refresh_res = client.post("/api/v1/auth/refresh", json={
+        "refresh_token": old_refresh_token
+    })
+    assert refresh_res.status_code == 200
+    new_refresh_token = refresh_res.json()["refresh_token"]
+    
+    assert new_refresh_token != old_refresh_token  # Logic check: Token rotated?
 
-def test_refresh_token(client):
-
-    # First login to get refresh token
-    login_data = {
-        "email": "adam@test.com",
-        "password": "password123"
-    }
-
-    login_response = client.post("/auth/login", json=login_data)
-
-    refresh_token = login_response.json()["refresh_token"]
-
-    refresh_data = {
-        "refresh_token": refresh_token
-    }
-
-    response = client.post("/auth/refresh", json=refresh_data)
-
-    assert response.status_code == 200
-
-    body = response.json()
-
-    assert "access_token" in body
-    assert "refresh_token" in body
-    assert body["refresh_token"] == refresh_token
-
-
-# ----------------------------
-# Test: Logout
-# ----------------------------
+    # 3. Try using the OLD refresh token again (should fail as it was deleted)
+    fail_res = client.post("/api/v1/auth/refresh", json={
+        "refresh_token": old_refresh_token
+    })
+    assert fail_res.status_code == 401
 
 def test_logout(client):
+    # 1. Login
+    client.post("/api/v1/auth/register", json=test_user)
+    login_res = client.post("/api/v1/auth/login", json={
+        "email": test_user["email"],
+        "password": test_user["password"]
+    })
+    access_token = login_res.json()["access_token"]
 
-    # Login first
-    login_data = {
-        "email": "adam@test.com",
-        "password": "password123"
-    }
-
-    login_response = client.post("/auth/login", json=login_data)
-
-    access_token = login_response.json()["access_token"]
-
-    headers = {
-        "Authorization": f"Bearer {access_token}"
-    }
-
-    response = client.post("/auth/logout", headers=headers)
-
+    # 2. Logout (Pass Bearer token)
+    response = client.post(
+        "/api/v1/auth/logout",
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
     assert response.status_code == 200
-    assert "logged out successfully" in response.json()["message"]
+    assert response.json()["message"] == "User logged out"

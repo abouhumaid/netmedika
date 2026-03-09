@@ -29,6 +29,7 @@ class Order(Base):
     prescription_image = Column(String, nullable=True) 
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, nullable=False)
     quantity = Column(Integer, default=1)
+    delivery_address = Column(String(500), nullable=True)
     # rejection_reason = Column(Text)
     # delivery_address = Column(String(500), nullable=False)
     

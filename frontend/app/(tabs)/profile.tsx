@@ -83,13 +83,6 @@ export default function ProfileScreen() {
 
   const menuItems = [
     {
-      id: 3,
-      title: 'Delivery Address',
-      icon: 'location-outline',
-      color: PharmacyColors.warning || '#FF9800',
-      onPress: () => router.push('/addresses/'),
-    },
-    {
       id: 5,
       title: 'Help & Support',
       icon: 'help-circle-outline',
