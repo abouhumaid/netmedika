@@ -5,7 +5,7 @@ import bcrypt
 from schemas.auth_schema import UserResponse, ChangePasswordRequest
 from models.auth_model import User
 from database import get_db
-from utils.auth_func import get_current_user
+from utils.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/profile", tags=["profile"])
 

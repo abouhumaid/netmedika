@@ -5,7 +5,7 @@ from controllers.auth_route import router as auth_router
 
 app = FastAPI()
 
-# Configure CORS
+# Configure CORS 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # For production, replace with specific domains
