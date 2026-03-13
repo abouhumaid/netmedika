@@ -7,7 +7,7 @@ load_dotenv()
 
 # postgresql://postgres:devhatch1@netmedika.c2fqkemcsrnr.us-east-1.rds.amazonaws.com:5432/netmedika
 
-engine = create_engine(os.getenv("DATABASE_URL"))
+engine = create_engine(os.getenv("DATABASE_URL", "sqlite:///./test.db"))
 SessionLocal = sessionmaker(
     autocommit=False, 
     autoflush=False, 
