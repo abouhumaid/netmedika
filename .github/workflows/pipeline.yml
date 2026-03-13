@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest httpx  # httpx is usually needed for FastAPI Testing
+          pip install pytest httpx  
 
       - name: Run tests
         run: |
@@ -40,6 +40,6 @@ jobs:
 
       - name: Build image
         run: |
-          docker build -t my-fastapi-app:latest .
+          docker build -t netmedkia-app:latest ./api
 
       # Optional: Add login and push steps here if using Docker Hub/GHCR
