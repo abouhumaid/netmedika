@@ -20,16 +20,18 @@ jobs:
 
       - name: Install dependencies
         run: |
+          cd api
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest httpx  
+          pip install pytest httpx
 
       - name: Run tests
         run: |
+          cd api
           pytest
 
   build-and-push:
-    needs: test  # Only runs if tests pass
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -41,5 +43,3 @@ jobs:
       - name: Build image
         run: |
           docker build -t netmedkia-app:latest ./api
-
-      # Optional: Add login and push steps here if using Docker Hub/GHCR
