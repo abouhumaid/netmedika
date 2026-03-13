@@ -11,7 +11,7 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
-JWT_SECRET_KEY = os.getenv("SECRET_KEY")
+JWT_SECRET_KEY = os.getenv("SECRET_KEY", "test-secret-key")
 JWT_ALGORITHM = "HS256"
 
 if not JWT_SECRET_KEY:
