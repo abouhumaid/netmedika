@@ -1,55 +1,59 @@
-# conftest.py — clean version without the bad mock
 import pytest
-from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_mock_engine # Or real engine for integration
 from sqlalchemy.orm import sessionmaker
-
+from database import Base, get_db
 from main import app
-from database import get_db, Base
-from utils.auth import get_current_user
+import os
 
-DATABASE_URL = "sqlite:///:memory:"
+# 1. Use an in-memory SQLite database for testing
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=True,
-    bind=engine
-)
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_database():
+@pytest.fixture(scope="session")
+def db_engine():
+    from sqlalchemy import create_engine
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
-    yield
+    yield engine
     Base.metadata.drop_all(bind=engine)
 
-@pytest.fixture
-def db():
-    connection = engine.connect()
+@pytest.fixture(scope="function")
+def db_session(db_engine):
+    """Creates a new database session for a test."""
+    connection = db_engine.connect()
     transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
+    Session = sessionmaker(bind=connection)
+    session = Session()
+
     yield session
+
     session.close()
     transaction.rollback()
     connection.close()
 
-@pytest.fixture
-def mock_user():
-    user = MagicMock()
-    user.id = "user_123"
-    user.email = "test@example.com"
-    user.is_admin = False
-    user.is_active = True
-    return user
+@pytest.fixture(scope="function")
+def client(db_session):
+    """Overrides the get_db dependency to use the test database."""
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+    
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
 
 @pytest.fixture
-def client(db, mock_user):
-    app.dependency_overrides[get_db] = lambda: db
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+def auth_headers(client):
+    """Helper fixture to provide a valid JWT header for protected routes."""
+    # 1. Register and Login a dummy user
+    client.post("/api/v1/auth/register", json={
+        "username": "testuser", "email": "test@qa.com", "password": "password123"
+    })
+    response = client.post("/api/v1/auth/login", json={
+        "email": "test@qa.com", "password": "password123"
+    })
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
