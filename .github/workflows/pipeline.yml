@@ -45,20 +45,22 @@ jobs:
           docker build -t netmedkia-app:latest ./api
 
   deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
+  needs: build-and-push
+  runs-on: ubuntu-latest
 
-    steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/ubuntu/netmedika
-            git pull origin main
-            docker build -t netmedkia-app:latest ./api
-            docker stop netmedkia-container || true
-            docker rm netmedkia-container || true
-            docker run -d -p 8000:8000 --name netmedkia-container netmedkia-app:latest
+  steps:
+    - name: Decode SSH key
+      run: |
+        echo "${{ secrets.EC2_SSH_KEY_BASE64 }}" | base64 -d > key.pem
+        chmod 400 key.pem
+
+    - name: Deploy to EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          cd netmedika
+          git pull origin main
+          docker build -t netmedkia-app ./api
+          docker stop netmedkia-container || true
+          docker rm netmedkia-container || true
+          docker run -d -p 8000:8000 --name netmedkia-container netmedkia-app
+        EOF
