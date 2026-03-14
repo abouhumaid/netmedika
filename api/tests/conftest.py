@@ -1,32 +1,61 @@
 import pytest
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
-from sqlalchemy import create_mock_engine # or your actual DB setup
-from main import app # Adjust this to your app entry point
-from database import get_db
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from main import app
+from database import get_db, Base
 from utils.auth import get_current_user
 
-# Mock Database setup (using SQLite in-memory for speed)
-@pytest.fixture
-def db_session():
-    # In a real scenario, you'd setup an engine and session here
-    # and yield it. For brevity, we'll assume the app uses the mock.
-    yield None 
+# ✅ In-memory DB — isolated, fast, no disk residue
+DATABASE_URL = "sqlite:///:memory:"
 
-# Mock User fixture
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False}
+)
+
+TestingSessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
+
+# ✅ Create tables once per session, drop them after all tests finish
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
+
+# ✅ Each test gets a clean rolled-back transaction
+@pytest.fixture
+def db():
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = TestingSessionLocal(bind=connection)
+    yield session
+    session.close()
+    transaction.rollback()
+    connection.close()
+
+
+# ✅ Auth dependency is mocked out — no real login needed
 @pytest.fixture
 def mock_user():
-    class MockUser:
-        id = "user_123"
-        is_admin = False
-    return MockUser()
+    user = MagicMock()
+    user.id = "user_123"
+    user.is_admin = False
+    return user
 
-# Override dependencies
-@pytest.fixture(autouse=True)
-def override_dependencies(mock_user):
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    yield
-    app.dependency_overrides = {}
 
+# ✅ App uses test DB and mock user for every request
 @pytest.fixture
-def client():
-    return TestClient(app)
+def client(db, mock_user):
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    yield TestClient(app)
+    app.dependency_overrides.clear()
