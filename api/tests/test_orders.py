@@ -31,6 +31,15 @@ def test_create_order_with_valid_image(client, auth_headers):
         headers=auth_headers
     )
     assert response.status_code == 201
+    body = response.json()
+    # If a file was saved, delete it to keep test environment clean
+    prescription = body.get("prescription_image")
+    if prescription:
+        from pathlib import Path
+        try:
+            Path(prescription).unlink()
+        except FileNotFoundError:
+            pass
 
 def test_order_authorization_bypass(client, auth_headers):
     """Test that a user cannot view another user's orders"""
