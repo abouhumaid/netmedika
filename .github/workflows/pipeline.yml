@@ -22,7 +22,7 @@ jobs:
         run: |
           cd api
           pytest
-          
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
 
       - name: Create SSH key
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
+          printf "%s" "${{ secrets.EC2_SSH_KEY }}" > key.pem
           chmod 400 key.pem
 
       - name: Deploy to EC2
