@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+
+  api:
+    build: ./api
+    container_name: netmedika_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:netmedika12@netmedika.c2fqkemcsrnr.us-east-1.rds.amazonaws.com:5432/netmedika
