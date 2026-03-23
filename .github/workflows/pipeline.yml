@@ -46,8 +46,8 @@ jobs:
 
             docker build -t netmedika-app ./api
 
-            docker stop netmedika || true
-            docker rm netmedika || true
+            docker stop netmedika-app || true
+            docker rm netmedika-app || true
 
             echo "Running migrations..."
             docker run --rm -e DATABASE_URL=$DATABASE_URL netmedika-app alembic upgrade head
