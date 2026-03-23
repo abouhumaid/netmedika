@@ -56,10 +56,8 @@ jobs:
             docker run --rm -e DATABASE_URL=$DATABASE_URL netmedika-app alembic upgrade head
 
             echo "🚀 Starting new container..."
-            docker run -d -p 8000:8000 \
-              -e DATABASE_URL=$DATABASE_URL \
-              --name netmedika netmedika-app
-
+            docker run -d -p 8000:8000 -e DATABASE_URL=$DATABASE_URL --name netmedika netmedika-app
+            
             echo "✅ Deployment complete"
 
           EOF
