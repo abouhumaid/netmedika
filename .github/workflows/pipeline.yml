@@ -49,8 +49,8 @@ jobs:
             docker build -t netmedika-app ./api
 
             echo "🛑 Stopping old container..."
-            docker stop netmedika || true
-            docker rm netmedika || true
+            docker stop admiring_bhaskara || true
+            docker rm admiring_bhaskara || true
 
             echo "🗄 Running migrations..."
             docker run --rm -e DATABASE_URL=$DATABASE_URL netmedika-app alembic upgrade head
