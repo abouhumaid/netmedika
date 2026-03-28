@@ -15,7 +15,6 @@ from typing import Annotated
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-# ─────────────────────────────────────────────────────────────────────────────
 
 logger = logging.getLogger(__name__)
 
