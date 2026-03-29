@@ -117,7 +117,10 @@ jobs:
           docker load -i /home/ubuntu/netmedika-app.tar
 
           echo "🗄 Running database migrations..."
-          docker run --rm -e DATABASE_URL="$DATABASE_URL" netmedika-app:latest alembic upgrade head
+          docker run --rm \
+            -e DATABASE_URL="netmedika-postgres.c2fqkemcsrnr.us-east-1.rds.amazonaws.com" \
+            netmedika-app:latest \
+            alembic upgrade head
 
           echo "🛑 Stopping old container..."
           docker stop netmedika 2>/dev/null || true
