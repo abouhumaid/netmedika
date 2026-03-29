@@ -1,14 +1,22 @@
+# .github/workflows/pipeline.yml
+#
+# Pipeline order: test ──► build ──► deploy
+#
+# Secrets required (GitHub → Settings → Secrets and variables → Actions):
+#   EC2_SSH_KEY   — contents of your .pem private key
+#   EC2_HOST      — public IP or domain of your EC2 instance
+#   DATABASE_URL  — full postgres connection string for production
+
 name: CI/CD Pipeline
 
 on:
   push:
     branches: ["main"]
 
-# ---------------------------------------------------------------------------
-# JOB 1 — TEST
-# Runs the full pytest suite. Build and deploy are skipped if this fails.
-# ---------------------------------------------------------------------------
 jobs:
+  # ---------------------------------------------------------------------------
+  # JOB 1 — TEST
+  # ---------------------------------------------------------------------------
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -30,15 +38,13 @@ jobs:
       - name: Run tests
         working-directory: api
         env:
-          DATABASE_URL: "sqlite:///:memory:"   # In-memory DB — no real DB needed in CI
+          DATABASE_URL: "sqlite:///:memory:"
         run: pytest --tb=short -v
 
 
   # ---------------------------------------------------------------------------
   # JOB 2 — BUILD
-  # Builds the Docker image on the CI runner and saves it as a .tar file.
-  # The tar is uploaded as a workflow artifact so the deploy job can grab it
-  # without rebuilding from scratch.
+  # Builds the Docker image and saves it as a .tar artifact for the deploy job.
   # ---------------------------------------------------------------------------
   build:
     name: Build Docker Image
@@ -49,24 +55,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Build image and tag it with the short git SHA for traceability
-      # e.g. netmedika-app:a1b2c3d
       - name: Build Docker image
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
           docker build \
             -t netmedika-app:${SHORT_SHA} \
             -t netmedika-app:latest \
             ./api
 
-      # Save the image to a .tar file so it can be transferred to EC2
       - name: Save Docker image to tar
-        run: |
-          docker save netmedika-app:latest -o netmedika-app.tar
+        run: docker save netmedika-app:latest -o netmedika-app.tar
 
-      # Upload the tar as a GitHub Actions artifact so the deploy job can download it
-      # retention-days: 1 — we only need it long enough for the deploy job to pick it up
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
@@ -77,8 +76,14 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # JOB 3 — DEPLOY
-  # Downloads the built image tar, copies it to EC2 via scp,
-  # loads it into Docker on EC2, runs migrations, and restarts the container.
+  #
+  # FIX: Instead of passing variables inline through a heredoc (which breaks
+  # when DATABASE_URL contains special characters like @, :, /), we:
+  #   1. Write the deploy script to a temp file on the runner
+  #   2. SCP both the image tar and the script to EC2
+  #   3. Execute the script on EC2, passing DATABASE_URL as a safe env variable
+  #
+  # This completely avoids shell quoting issues with heredocs over SSH.
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to EC2
@@ -89,67 +94,75 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: docker-image   # Downloads netmedika-app.tar into the current directory
+          name: docker-image
 
-      # Write the SSH private key from secrets to a temp file
       - name: Set up SSH key
         run: |
           mkdir -p ~/.ssh
           printf "%s" "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/key.pem
           chmod 400 ~/.ssh/key.pem
-          # Pre-accept EC2 host fingerprint — avoids interactive prompt hanging the pipeline
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      # Copy the image tar from the CI runner to the EC2 instance
-      # This replaces the need for docker pull from a registry
-      - name: Copy image to EC2
+      # Write the deploy script to a file on the runner.
+      # Using << 'SCRIPT' (quoted) means NO variable substitution happens here —
+      # DATABASE_URL is left as a literal $DATABASE_URL placeholder,
+      # which will be filled in at runtime on EC2 from the environment.
+      - name: Write deploy script
+        run: |
+          cat > /tmp/deploy.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e    # Exit immediately if any command fails
+
+          echo "📦 Loading Docker image..."
+          docker load -i /home/ubuntu/netmedika-app.tar
+
+          echo "🗄 Running database migrations..."
+          docker run --rm \
+            -e DATABASE_URL="$DATABASE_URL" \
+            netmedika-app:latest \
+            alembic upgrade head
+
+          echo "🛑 Stopping old container..."
+          docker stop netmedika 2>/dev/null || true
+          docker rm   netmedika 2>/dev/null || true
+
+          echo "🚀 Starting new container..."
+          docker run -d \
+            --name netmedika \
+            --restart unless-stopped \
+            -p 8000:8000 \
+            -e DATABASE_URL="$DATABASE_URL" \
+            netmedika-app:latest
+
+          echo "🧹 Cleaning up..."
+          rm -f /home/ubuntu/netmedika-app.tar
+          rm -f /home/ubuntu/deploy.sh
+          docker image prune -f
+
+          echo "✅ Deployment complete:"
+          docker ps --filter "name=netmedika"
+          SCRIPT
+
+          chmod +x /tmp/deploy.sh
+
+      # SCP both files in one step to save time
+      - name: Copy image and script to EC2
         run: |
           scp -i ~/.ssh/key.pem \
             netmedika-app.tar \
-            ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/netmedika-app.tar
+            /tmp/deploy.sh \
+            ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/
 
-      # SSH into EC2 and run all deployment steps
-      # DATABASE_URL is passed explicitly — env: variables don't cross SSH boundaries
-      - name: Deploy on EC2
+      # Execute the script on EC2.
+      # DATABASE_URL is passed as an environment variable to the ssh command —
+      # this is the safe way to pass secrets that contain special characters.
+      - name: Run deploy script on EC2
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}   # loaded into runner env first
         run: |
           ssh -i ~/.ssh/key.pem ubuntu@${{ secrets.EC2_HOST }} \
-            DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-          << 'EOF'
+            "DATABASE_URL='${DATABASE_URL}' bash /home/ubuntu/deploy.sh"
 
-            set -e   # Stop immediately if any command fails
-
-            echo "📦 Loading Docker image from tar..."
-            docker load -i /home/ubuntu/netmedika-app.tar
-
-            echo "🗄 Running database migrations..."
-            # Run migrations in a throwaway container before touching the live one
-            docker run --rm \
-              -e DATABASE_URL="$DATABASE_URL" \
-              netmedika-app:latest \
-              alembic upgrade head
-
-            echo "🛑 Stopping and removing old container..."
-            docker stop netmedika 2>/dev/null || true
-            docker rm   netmedika 2>/dev/null || true
-
-            echo "🚀 Starting new container..."
-            docker run -d \
-              --name netmedika \
-              --restart unless-stopped \
-              -p 8000:8000 \
-              -e DATABASE_URL="$DATABASE_URL" \
-              netmedika-app:latest
-
-            echo "🧹 Cleaning up tar file and unused images..."
-            rm -f /home/ubuntu/netmedika-app.tar
-            docker image prune -f   # Removes dangling images — keeps EC2 disk clean
-
-            echo "✅ Deployment complete — running container:"
-            docker ps --filter "name=netmedika"
-
-          EOF
-
-      # Always remove the key from the runner — even if deployment failed
       - name: Clean up SSH key
-        if: always()
+        if: always()    # Runs even if deploy failed
         run: rm -f ~/.ssh/key.pem
