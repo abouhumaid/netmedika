@@ -1,6 +1,5 @@
-__pycache__
-*.pyc
-.git
-.env
-venv
-.pytest_cache
+__pycache__/
+.pytest_cache/
+.venv/
+test_database.db
+uploads/
