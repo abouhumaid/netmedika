@@ -41,6 +41,12 @@ chmod 600 "${ENV_FILE}"
 echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
 docker pull "${IMAGE}"
 
+# Run schema migrations from the EC2 host, which has network access to RDS.
+docker run --rm \
+  --env-file "${ENV_FILE}" \
+  "${IMAGE}" \
+  alembic upgrade head
+
 if docker ps -a --format '{{.Names}}' | grep -Fxq "${CONTAINER_NAME}"; then
   docker rm -f "${CONTAINER_NAME}"
 fi

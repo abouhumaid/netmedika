@@ -13,7 +13,7 @@ resource "aws_db_instance" "netmedika_db" {
   password               = var.db_password
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = false
+  publicly_accessible    = true
   skip_final_snapshot    = true
   deletion_protection    = false
   multi_az               = false
