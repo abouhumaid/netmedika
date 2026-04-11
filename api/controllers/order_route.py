@@ -341,7 +341,7 @@ async def delete_order(
 
 @router.get("/user/{user_id}", response_model=dict)
 async def get_user_orders(
-    user_id:      str,
+    user_id:      int,
     skip:         int  = Query(default=0,  ge=0),
     limit:        int  = Query(default=20, ge=1, le=50),
     db:           Session = Depends(get_db),
@@ -350,7 +350,7 @@ async def get_user_orders(
     _require_auth(current_user)
 
     # Cast both sides to str to avoid int vs str type-mismatch (broken authz fix)
-    if str(current_user.id) != str(user_id):
+    if current_user.id != user_id:
         if not getattr(current_user, "is_admin", False):
             raise HTTPException(status_code=403, detail="Not authorized to view these orders.")
 

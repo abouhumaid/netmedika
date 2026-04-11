@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PharmacyColors } from '../../constants/Colors';
 import * as ImagePicker from 'expo-image-picker';
 
-const API_URL = 'http://100.53.230.81:8000';
+const API_URL = 'http://100.53.230.81';
 
 const MEDICINE_TYPES = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Drops'];
 const DOSAGE_OPTIONS = [
