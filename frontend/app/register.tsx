@@ -43,7 +43,7 @@ export default function RegisterScreen() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const response = await fetch('http://192.168.43.240:8000/api/v1/auth/register', {
+      const response = await fetch('http://100.53.230.81/api/v1/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
