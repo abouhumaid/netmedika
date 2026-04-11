@@ -87,7 +87,7 @@ export default function ProfileScreen() {
       title: 'Help & Support',
       icon: 'help-circle-outline',
       color: '#2196F3',
-      onPress: () => Alert.alert('Help & Support', 'Contact us at support@pharmacy.com'),
+      onPress: () => Alert.alert('Help & Support', 'Contact us at support@netmedika.com'),
     },
     {
       id: 6,
