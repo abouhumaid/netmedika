@@ -20,8 +20,7 @@ class Order(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(String(50), unique=True, nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), 
-    nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     dosage_form = Column(String, nullable=True)
     medication_name = Column(String, nullable=True)
     strength = Column(String, nullable=True)
