@@ -7,14 +7,15 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "icons": "node scripts/convert-icons.js"
+    "icons": "node scripts/convert-icons.js",
+    "preinstall": "corepack enable"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/drawer": "^7.3.9",
     "appwrite": "^21.0.0",
-    "expo": "^54.0.32",
+    "expo": "^55.0.14",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.20",
@@ -41,7 +42,6 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-vector-icons": "^10.3.0",
-    "react-native-worklets": "0.5.1",
     "sharp": "^0.34.4",
     "yup": "^1.7.0"
   },

@@ -3,29 +3,23 @@
     "version": ">= 16.6.2",
     "appVersionSource": "remote"
   },
-  "build": {
+   "build": {
     "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "android": {
-        "gradleCommand": ":app:assembleDebug",
-        "buildType": "apk"
+      "node": "18.18.0",
+      "env": {
+        "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
       }
     },
     "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
+      "node": "18.18.0"
     },
     "production": {
-      "autoIncrement": true,
-      "android": {
-        "buildType": "app-bundle"
-      }
+      "node": "18.18.0"
     }
   },
   "submit": {
     "production": {}
   }
 }
+
+

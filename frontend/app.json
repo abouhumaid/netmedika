@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon.png",
-       "infoPlist": {
+      "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to take prescription photos.",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to upload prescriptions."
       }
@@ -28,10 +28,11 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.abouhumaida.netmedika",
-       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -52,6 +53,7 @@
       "eas": {
         "projectId": "fb15b9ee-71e2-4b01-b927-c1e22691e2ae"
       }
-    }
+    },
+    "owner": "abouhumaida"
   }
 }
