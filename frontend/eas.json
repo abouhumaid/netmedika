@@ -8,13 +8,15 @@
       "node": "18.18.0",
       "env": {
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
-      }
+      },
+      "corepack": "true"
     },
     "preview": {
       "node": "18.18.0"
     },
     "production": {
-      "node": "18.18.0"
+      "node": "18.18.0",
+      "corepack": "true"
     }
   },
   "submit": {
