@@ -3,25 +3,24 @@
     "version": ">= 16.6.2",
     "appVersionSource": "remote"
   },
-   "build": {
+  "build": {
     "development": {
-      "node": "18.18.0",
+      "node": "20.10.0",
+      "corepack": true,
       "env": {
         "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
-      },
-      "corepack": "true"
+      }
     },
     "preview": {
-      "node": "18.18.0"
+      "node": "20.10.0",
+      "corepack": true
     },
     "production": {
-      "node": "18.18.0",
-      "corepack": "true"
+      "node": "20.10.0",
+      "corepack": true
     }
   },
   "submit": {
     "production": {}
   }
 }
-
-
