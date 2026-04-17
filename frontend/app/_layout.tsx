@@ -1,41 +1,28 @@
+import '../global.css';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { SafeAreaView } from "react-native-safe-area-context";
-import Toast from 'react-native-toast-message';
-import { StyleSheet } from "react-native";
+import { StatusBar } from 'expo-status-bar';
+import 'react-native-reanimated';
+
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="register" />
-        <Stack.Screen name="forgot-password" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(addresses)" 
-        options={
-          {
-            headerShown: true,
-            headerTitle: 'Manage Addresses',
-            headerStyle: {
-              backgroundColor: '#4CAF50',
-            },
-            headerTintColor: '#fff',
-          }}
-        />
-      </Stack>  
-      <Toast />
-    </SafeAreaView>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-});

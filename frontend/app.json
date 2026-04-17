@@ -1,59 +1,49 @@
 {
   "expo": {
-    "name": "netmedika",
-    "scheme": "netmedika",
-    "slug": "netmedika",
+    "name": "frontend",
+    "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
+    "scheme": "frontend",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0D47A1"
-    },
     "ios": {
-      "supportsTablet": true,
-      "icon": "./assets/icon.png",
-      "infoPlist": {
-        "NSCameraUsageDescription": "This app needs access to camera to take prescription photos.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to upload prescriptions."
-      }
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.abouhumaida.netmedika",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
-        "expo-image-picker",
+        "expo-splash-screen",
         {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to upload prescriptions.",
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take prescription photos."
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
         }
       ]
     ],
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "fb15b9ee-71e2-4b01-b927-c1e22691e2ae"
-      }
-    },
-    "owner": "abouhumaida"
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
   }
 }

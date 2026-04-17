@@ -1,71 +1,33 @@
 import { Tabs } from 'expo-router';
-import { PharmacyColors } from '../../constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 
+import { HapticTab } from '@/components/haptic-tab';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
+  const colorScheme = useColorScheme();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: PharmacyColors.accent,
-        tabBarInactiveTintColor: PharmacyColors.gray,
-        tabBarStyle: {
-          backgroundColor: PharmacyColors.white,
-          borderTopWidth: 1,
-          borderTopColor: PharmacyColors.borderGray,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
-        headerStyle: {
-          backgroundColor: PharmacyColors.primary,
-        },
-        headerTintColor: PharmacyColors.white,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-          fontSize: 18,
-        },
-      }}
-    >
+        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        headerShown: false,
+        tabBarButton: HapticTab,
+      }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="medicines"
+        name="explore"
         options={{
-          title: 'Medicines',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="medical" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="cart"
-        options={{
-          title: 'Cart',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cart" size={size} color={color} />
-          ),
-          // tabBarBadge: 3, // Example badge for cart items
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
         }}
       />
     </Tabs>

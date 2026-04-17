@@ -1,127 +1,152 @@
-import { useState } from 'react';
-import { Text, TouchableOpacity } from 'react-native';
-import CustomAlert from '../components/CustomAlert';
-import { TextInput } from 'react-native-paper';
-import { useRouter } from 'expo-router';
-import { useForm } from "react-hook-form";
-import CustomInput from '../components/CustomInput';
-import AuthLayout from '../components/AuthLayout';
-import { styles as authStyles } from '../styles/authStyles';
-import { PharmacyColors } from '../constants/Colors';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-type FormData = {
-  email: string;
-  password: string;
+type FloatingFieldProps = {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  secureTextEntry?: boolean;
+  keyboardType?: 'default' | 'email-address';
 };
 
-const Login = () => {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
+function FloatingField({
+  label,
+  value,
+  onChangeText,
+  secureTextEntry,
+  keyboardType = 'default',
+}: FloatingFieldProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const animated = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const active = isFocused || value.length > 0;
 
-  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
-    mode: 'onChange',
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
+  useEffect(() => {
+    Animated.timing(animated, {
+      toValue: active ? 1 : 0,
+      duration: 180,
+      useNativeDriver: false,
+    }).start();
+  }, [active, animated]);
 
-  const onSubmit = async (formData: FormData) => {
-    setLoading(true);
-    const { email, password } = formData;
-    try {
-      const response = await fetch('http://100.53.230.81/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.access_token) {
-        await AsyncStorage.setItem('userToken', data.access_token);
-        const savedToken = await AsyncStorage.getItem('userToken');
-        console.log('Login successful:');
-        router.push('/(tabs)/');
-        return data;
-      } else {
-        setAlertType('error');
-        setAlertTitle('Login Failed');
-        setAlertMessage(data.detail || 'Invalid credentials');
-        setAlertVisible(true);
-        
-        
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      setAlertType('error');
-      setAlertTitle('Error');
-      setAlertMessage('Network request failed');
-      setAlertVisible(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const labelStyle = useMemo(
+    () => ({
+      top: animated.interpolate({
+        inputRange: [0, 1],
+        outputRange: [18, 8],
+      }),
+      fontSize: animated.interpolate({
+        inputRange: [0, 1],
+        outputRange: [16, 12],
+      }),
+      color: active ? '#0F766E' : '#64748B',
+    }),
+    [active, animated]
+  );
 
   return (
-    <>
-      <AuthLayout
-        title="Welcome Back"
-        subtitle="Sign in to continue"
-        submitText="Sign In"
-        onSubmit={handleSubmit(onSubmit)}
-        loading={loading}
-        footerText="Don't have an account? "
-        footerLinkText="Sign Up"
-        footerLinkHref="/register"
-      >
-        <CustomInput
-          name="email"
-          control={control}
-          label="Email"
-          validationType="email"
-          keyboardType="email-address"
-          left={<TextInput.Icon icon="email" color={PharmacyColors.accent} />}
-        />
-
-        <CustomInput
-          name="password"
-          control={control}
-          label="Password"
-          validationType="password"
-          secureTextEntry={!showPassword}
-          right={<TextInput.Icon icon={showPassword ? 'eye-off' : 'eye'} onPress={() => setShowPassword(!showPassword)} color={PharmacyColors.gray} />}
-          left={<TextInput.Icon icon="lock" color={PharmacyColors.accent} />}
-        />
-
-        <TouchableOpacity style={authStyles.forgotPassword} onPress={() => {}}>
-          <Text style={authStyles.forgotPasswordText}>Forgot Password?</Text>
-        </TouchableOpacity>
-      </AuthLayout>
-      <CustomAlert
-        visible={alertVisible}
-        type={alertType}
-        title={alertTitle}
-        message={alertMessage}
-        confirmText="OK"
-        onConfirm={() => {
-          setAlertVisible(false);
-          if (alertType === 'success') {
-            router.replace('/');
-          }
-        }}
+    <View
+      className={`relative min-h-[72px] justify-center rounded-[18px] border bg-[#FCFFFE] px-4 pt-[18px] ${
+        active ? 'border-pharmacy-600' : 'border-[#CFE9E4]'
+      }`}>
+      <Animated.Text style={[styles.floatingLabel, labelStyle]}>
+        {label}
+      </Animated.Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className="pb-2 pt-3 text-base text-slateink"
+        selectionColor="#0F766E"
+        keyboardType={keyboardType}
+        autoCapitalize="none"
+        secureTextEntry={secureTextEntry}
       />
-    </>
+    </View>
   );
-};
+}
 
-export default Login;
+export default function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  return (
+    <SafeAreaView className="flex-1 bg-[#F4FFFC]">
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View className="mx-auto flex-1 w-full max-w-[560px] px-4 pb-7 pt-2.5 sm:px-5">
+          <View className="flex-row items-center justify-between">
+            <Pressable onPress={() => router.back()} hitSlop={10}>
+              <Text className="text-[15px] font-bold text-pharmacy-600">Back</Text>
+            </Pressable>
+            <Text className="overflow-hidden rounded-full bg-pharmacy-100 px-3 py-2 text-[12px] font-bold uppercase tracking-[0.4px] text-pharmacy-600">
+              Secure sign in
+            </Text>
+          </View>
+
+          <View className="mt-8 items-center gap-2">
+            <Text className="text-[15px] font-semibold uppercase tracking-[3px] text-pharmacy-600">
+              Sign in
+            </Text>
+            <Text className="text-center text-[36px] font-black tracking-[2px] text-slateink sm:text-[42px]">
+              <Text className="text-pharmacy-600">Net</Text>
+              <Text className="text-emerald-500">medika</Text>
+            </Text>
+          </View>
+
+          <View className="mt-6 gap-4 rounded-[28px] bg-white p-5 shadow-sm shadow-slate-950/10 sm:p-6">
+            <FloatingField
+              label="Email address"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+            />
+            <FloatingField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <Pressable className="self-end">
+              <Text className="text-sm font-semibold text-pharmacy-600">Forgot password?</Text>
+            </Pressable>
+
+            <Pressable className="items-center rounded-[18px] bg-pharmacy-600 py-[17px] active:bg-pharmacy-700">
+              <Text className="text-base font-bold text-white">Log In</Text>
+            </Pressable>
+          </View>
+
+          <Text className="mt-5 text-center text-sm leading-[21px] text-slate-500">
+            New account?{' '}
+            <Text className="font-bold text-pharmacy-600" onPress={() => router.push('/register')}>
+              Register here
+            </Text>
+          </Text>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  floatingLabel: {
+    position: 'absolute',
+    left: 16,
+    fontWeight: '600',
+  },
+});

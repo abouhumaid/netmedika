@@ -1,251 +1,80 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Dimensions, 
-  StatusBar 
-} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import Svg, { Circle, G, Rect } from 'react-native-svg';
-
-const { width, height } = Dimensions.get('window');
-
-const WelcomeScreen = () => {
-  const router = useRouter();
-
+export default function LandingScreen() {
   return (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor="#0D47A1" />
-      <LinearGradient
-        colors={['#0D47A1', '#1565C0', '#1976D2']}
-        style={styles.container}
-      >
-        {/* Top decorative gradient overlay */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.2)', 'transparent']}
-          style={styles.topGradient}
-        />
+    <SafeAreaView className="flex-1 bg-[#F8FFFD]">
+      <StatusBar style="dark" />
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <View className="mx-auto w-full max-w-[560px] gap-[18px] px-4 pb-9 pt-3 sm:px-5">
+          <View className="min-h-[500px] justify-between overflow-hidden rounded-[32px] bg-white p-5 shadow-sm shadow-slate-950/10 sm:p-6">
+            <View className="absolute right-[-40px] top-[-60px] h-[220px] w-[220px] rounded-full bg-pharmacy-100" />
+            <View className="absolute bottom-[72px] right-[-30px] h-[140px] w-[140px] rounded-full bg-amber-100" />
 
-        {/* Pharmacy Icon/Logo */}
-        <View style={styles.logoContainer}>
-          <View style={styles.iconBackground}>
-            <Svg height="120" width="120" viewBox="0 0 100 100">
-              {/* Medical cross with rounded edges */}
-              <G transform="translate(50, 50)">
-                {/* Vertical bar */}
-                <Rect
-                  x="-8"
-                  y="-25"
-                  width="16"
-                  height="50"
-                  rx="4"
-                  fill="#00BCD4"
-                />
-                {/* Horizontal bar */}
-                <Rect
-                  x="-25"
-                  y="-8"
-                  width="50"
-                  height="16"
-                  rx="4"
-                  fill="#00BCD4"
-                />
-              </G>
-              {/* Outer circle */}
-              <Circle
-                cx="50"
-                cy="50"
-                r="45"
-                stroke="#00BCD4"
-                strokeWidth="3"
-                fill="none"
-                opacity="0.5"
-              />
-            </Svg>
+            <View className="self-start rounded-full bg-[#E6FFFB] px-3.5 py-2">
+              <Text className="text-[12px] font-bold uppercase tracking-[0.4px] text-pharmacy-600">
+                NetMedika Pharmacy Care
+              </Text>
+            </View>
+
+            <Text className="mt-5 max-w-[92%] text-[30px] font-extrabold leading-9 text-slateink sm:text-[34px] sm:leading-10">
+              Order trusted medicines with calm, guided delivery.
+            </Text>
+            <Text className="mt-3.5 max-w-[94%] text-base leading-6 text-slate-600">
+              Refill prescriptions, request pharmacist support, and track every order from one clean
+              mobile experience.
+            </Text>
+
+            <View className="mt-6 gap-2.5">
+              <View className="self-start rounded-[18px] bg-pharmacy-50 px-3.5 py-2.5">
+                <Text className="text-sm font-semibold text-slateink">Prescription upload</Text>
+              </View>
+              <View className="self-start rounded-[18px] bg-pharmacy-50 px-3.5 py-2.5">
+                <Text className="text-sm font-semibold text-slateink">Same-day dispatch</Text>
+              </View>
+              <View className="self-start rounded-[18px] bg-pharmacy-50 px-3.5 py-2.5">
+                <Text className="text-sm font-semibold text-slateink">Live order updates</Text>
+              </View>
+            </View>
+
+            <Pressable
+              className="mt-7 items-center rounded-[18px] bg-pharmacy-600 py-[17px] active:bg-pharmacy-700"
+              onPress={() => router.push('/login')}>
+              <Text className="text-base font-bold text-white">Continue to Login</Text>
+            </Pressable>
+          </View>
+
+          <View className="gap-3.5">
+            <View className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-950/5">
+              <Text className="text-[13px] font-bold uppercase tracking-[0.6px] text-pharmacy-600">
+                Fast access
+              </Text>
+              <Text className="mt-2 text-[20px] font-bold leading-7 text-slateink">
+                24/7 order placement
+              </Text>
+            </View>
+            <View className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-950/5">
+              <Text className="text-[13px] font-bold uppercase tracking-[0.6px] text-pharmacy-600">
+                Built for trust
+              </Text>
+              <Text className="mt-2 text-[20px] font-bold leading-7 text-slateink">
+                Clear dosing and delivery steps
+              </Text>
+            </View>
+          </View>
+
+          <View className="rounded-3xl bg-emerald-50 p-5">
+            <Text className="text-lg font-bold text-slateink">Suggested brand color</Text>
+            <Text className="mt-2 text-[15px] leading-[23px] text-slate-600">
+              Use pharmacy teal{' '}
+              <Text className="font-extrabold text-pharmacy-600">#0F766E</Text>. It feels
+              clinical, reliable, and fresh without looking too cold.
+            </Text>
           </View>
         </View>
-
-        {/* Welcome Text */}
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>Welcome to NetMedika</Text>
-          <Text style={styles.subtitle}>
-            Your trusted partner in health and wellness. Order medicines, consult experts, and manage your health easily.
-          </Text>
-        </View>
-
-        {/* Feature Pills */}
-        {/* <View style={styles.featuresContainer}>
-          <View style={styles.featurePill}>
-            <Text style={styles.featureIcon}>💊</Text>
-            <Text style={styles.featureText}>Order Drugs</Text>
-          </View>
-          <View style={styles.featurePill}>
-            <Text style={styles.featureIcon}>👨‍⚕️</Text>
-            <Text style={styles.featureText}>Consultation</Text>
-          </View>
-          <View style={styles.featurePill}>
-            <Text style={styles.featureIcon}>🚚</Text>
-            <Text style={styles.featureText}>Fast Delivery</Text>
-          </View>
-        </View> */}
-
-        {/* Buttons Container */}
-        <View style={styles.buttonsContainer}>
-          
-          {/* Get Started Button */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push('/login')}
-          >
-            <LinearGradient
-              colors={['#00BCD4', '#00ACC1']}
-              style={styles.primaryButton}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Text style={styles.primaryButtonText}>Get Started</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Sign In Button */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push('/login')}
-            style={styles.secondaryButton}
-          >
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom decorative gradient */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.15)']}
-          style={styles.bottomGradient}
-        />
-      </LinearGradient>
-    </>
+      </ScrollView>
+    </SafeAreaView>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 50,
-  },
-  topGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: height * 0.3,
-  },
-  bottomGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: height * 0.2,
-  },
-  logoContainer: {
-    marginTop: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBackground: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 80,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  textContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 30,
-    marginTop: 30,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    opacity: 0.95,
-    lineHeight: 24,
-    paddingHorizontal: 10,
-  },
-  featuresContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: width * 0.9,
-    marginVertical: 20,
-  },
-  featurePill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 25,
-    alignItems: 'center',
-    minWidth: 100,
-  },
-  featureIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  featureText: {
-    fontSize: 11,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  buttonsContainer: {
-    width: width * 0.85,
-    gap: 16,
-    marginBottom: 30,
-  },
-  primaryButton: {
-    paddingVertical: 18,
-    paddingHorizontal: 40,
-    borderRadius: 30,
-    alignItems: 'center',
-    shadowColor: '#00BCD4',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  primaryButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-  secondaryButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 30,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-    opacity: 0.9,
-  },
-});
-
-export default WelcomeScreen;
+}
