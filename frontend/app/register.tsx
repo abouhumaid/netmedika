@@ -1,85 +1,70 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { z } from 'zod';
 
-type FloatingFieldProps = {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address';
-};
+import { AuthSubmitButton, BackArrowButton, FloatingField } from '@/components/auth-ui';
+import { Snackbar } from '@/components/snackbar';
+import { registerUser } from '@/lib/auth-api';
+import { setPendingFlashToast } from '@/lib/flash-toast';
 
-function FloatingField({
-  label,
-  value,
-  onChangeText,
-  secureTextEntry,
-  keyboardType = 'default',
-}: FloatingFieldProps) {
-  const [isFocused, setIsFocused] = useState(false);
-  const animated = useRef(new Animated.Value(value ? 1 : 0)).current;
-  const active = isFocused || value.length > 0;
+const registerSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, 'Enter your full name.')
+    .regex(/^[A-Za-z\s'-]+$/, 'Use letters only for your full name.'),
+  email: z.string().trim().email('Enter a valid email address.'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters.')
+    .regex(/[A-Z]/, 'Include at least one uppercase letter.')
+    .regex(/[0-9]/, 'Include at least one number.'),
+});
 
-  useEffect(() => {
-    Animated.timing(animated, {
-      toValue: active ? 1 : 0,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  }, [active, animated]);
-
-  const labelStyle = useMemo(
-    () => ({
-      top: animated.interpolate({
-        inputRange: [0, 1],
-        outputRange: [18, 8],
-      }),
-      fontSize: animated.interpolate({
-        inputRange: [0, 1],
-        outputRange: [16, 12],
-      }),
-      color: active ? '#0F766E' : '#64748B',
-    }),
-    [active, animated]
-  );
-
-  return (
-    <View
-      className={`relative min-h-[72px] justify-center rounded-[18px] border bg-[#FCFFFE] px-4 pt-[18px] ${
-        active ? 'border-pharmacy-600' : 'border-[#CFE9E4]'
-      }`}>
-      <Animated.Text style={[styles.floatingLabel, labelStyle]}>{label}</Animated.Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className="pb-2 pt-3 text-base text-slateink"
-        selectionColor="#0F766E"
-        keyboardType={keyboardType}
-        autoCapitalize="none"
-        secureTextEntry={secureTextEntry}
-      />
-    </View>
-  );
-}
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterScreen() {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      password: '',
+    },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      await registerUser({
+        username: values.fullName.trim(),
+        email: values.email.trim(),
+        password: values.password,
+      });
+
+      setPendingFlashToast({
+        message: 'Account created successfully. Please sign in to continue.',
+        tone: 'success',
+      });
+      router.replace('/login');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to create your account right now.';
+      setSnackbarMessage(message);
+    }
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-[#F4FFFC]">
@@ -89,9 +74,7 @@ export default function RegisterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="mx-auto flex-1 w-full max-w-[560px] px-4 pb-7 pt-2.5 sm:px-5">
           <View className="flex-row items-center justify-between">
-            <Pressable onPress={() => router.back()} hitSlop={10}>
-              <Text className="text-[15px] font-bold text-pharmacy-600">Back</Text>
-            </Pressable>
+            <BackArrowButton />
             <Text className="overflow-hidden rounded-full bg-pharmacy-100 px-3 py-2 text-[12px] font-bold uppercase tracking-[0.4px] text-pharmacy-600">
               New account
             </Text>
@@ -105,32 +88,62 @@ export default function RegisterScreen() {
               <Text className="text-pharmacy-600">Net</Text>
               <Text className="text-emerald-500">medika</Text>
             </Text>
-            <Text className="max-w-[320px] text-center text-base leading-6 text-slate-500">
-              Create your pharmacy account to place orders, manage prescriptions, and track delivery.
-            </Text>
           </View>
 
           <View className="mt-6 gap-4 rounded-[28px] bg-white p-5 shadow-sm shadow-slate-950/10 sm:p-6">
-            <FloatingField label="Full name" value={fullName} onChangeText={setFullName} />
-            <FloatingField
-              label="Email address"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-            />
-            <FloatingField
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
+            <Controller
+              control={control}
+              name="fullName"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <FloatingField
+                  label="Full name"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  autoCapitalize="words"
+                  errorMessage={errors.fullName?.message}
+                />
+              )}
             />
 
-            <Pressable className="items-center rounded-[18px] bg-pharmacy-600 py-[17px] active:bg-pharmacy-700">
-              <Text className="text-base font-bold text-white">Create Account</Text>
-            </Pressable>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <FloatingField
+                  label="Email address"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="email-address"
+                  errorMessage={errors.email?.message}
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <FloatingField
+                  label="Password"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  secureTextEntry
+                  errorMessage={errors.password?.message}
+                />
+              )}
+            />
+
+            <AuthSubmitButton
+              label={isSubmitting ? 'Creating Account...' : 'Create Account'}
+              onPress={onSubmit}
+              disabled={isSubmitting}
+            />
           </View>
 
-          <Text className="mt-5 text-center text-sm leading-[21px] text-slate-500">
+          <Text className="mt-5 text-center leading-[21px] text-slate-500">
             Already registered?{' '}
             <Text className="font-bold text-pharmacy-600" onPress={() => router.push('/login')}>
               Login here
@@ -138,14 +151,12 @@ export default function RegisterScreen() {
           </Text>
         </View>
       </KeyboardAvoidingView>
+      <Snackbar
+        visible={!!snackbarMessage}
+        message={snackbarMessage}
+        tone="error"
+        onHide={() => setSnackbarMessage('')}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  floatingLabel: {
-    position: 'absolute',
-    left: 16,
-    fontWeight: '600',
-  },
-});

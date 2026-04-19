@@ -5,72 +5,48 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LandingScreen() {
   return (
-    <SafeAreaView className="flex-1 bg-[#F8FFFD]">
+    <SafeAreaView className="flex-1 bg-[#F4FFFC]">
       <StatusBar style="dark" />
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="mx-auto w-full max-w-[560px] gap-[18px] px-4 pb-9 pt-3 sm:px-5">
-          <View className="min-h-[500px] justify-between overflow-hidden rounded-[32px] bg-white p-5 shadow-sm shadow-slate-950/10 sm:p-6">
-            <View className="absolute right-[-40px] top-[-60px] h-[220px] w-[220px] rounded-full bg-pharmacy-100" />
-            <View className="absolute bottom-[72px] right-[-30px] h-[140px] w-[140px] rounded-full bg-amber-100" />
+        <View className="mx-auto flex-1 w-full max-w-[560px] px-4 pb-9 pt-3 sm:px-5">
+          <View className="min-h-[680px] justify-center overflow-hidden rounded-[34px] bg-white px-6 py-8 shadow-sm shadow-slate-950/10 sm:px-8">
+            <View className="absolute left-[-58px] top-[-40px] h-[200px] w-[200px] rounded-full bg-[#D8FFF5]" />
+            <View className="absolute bottom-[-36px] right-[-44px] h-[170px] w-[170px] rounded-full bg-[#E5F6FF]" />
+            <View className="absolute right-[18%] top-[19%] h-5 w-5 rounded-full bg-emerald-200" />
 
-            <View className="self-start rounded-full bg-[#E6FFFB] px-3.5 py-2">
-              <Text className="text-[12px] font-bold uppercase tracking-[0.4px] text-pharmacy-600">
-                NetMedika Pharmacy Care
+            <View className="self-center rounded-full bg-pharmacy-50 px-3.5 py-2">
+              <Text className="text-[12px] font-bold uppercase tracking-[1.1px] text-pharmacy-600">
+                Welcome
               </Text>
             </View>
 
-            <Text className="mt-5 max-w-[92%] text-[30px] font-extrabold leading-9 text-slateink sm:text-[34px] sm:leading-10">
-              Order trusted medicines with calm, guided delivery.
-            </Text>
-            <Text className="mt-3.5 max-w-[94%] text-base leading-6 text-slate-600">
-              Refill prescriptions, request pharmacist support, and track every order from one clean
-              mobile experience.
-            </Text>
-
-            <View className="mt-6 gap-2.5">
-              <View className="self-start rounded-[18px] bg-pharmacy-50 px-3.5 py-2.5">
-                <Text className="text-sm font-semibold text-slateink">Prescription upload</Text>
-              </View>
-              <View className="self-start rounded-[18px] bg-pharmacy-50 px-3.5 py-2.5">
-                <Text className="text-sm font-semibold text-slateink">Same-day dispatch</Text>
-              </View>
-              <View className="self-start rounded-[18px] bg-pharmacy-50 px-3.5 py-2.5">
-                <Text className="text-sm font-semibold text-slateink">Live order updates</Text>
-              </View>
+            <View className="mt-8 items-center">
+              <Text className="text-center text-[16px] font-semibold uppercase tracking-[4px] text-slate-400">
+                Your digital Med App
+              </Text>
+              <Text className="mt-4 text-center text-[44px] font-black tracking-[2px] text-slateink sm:text-[52px]">
+                <Text className="text-pharmacy-600">Net</Text>
+                <Text className="text-emerald-500">medika</Text>
+              </Text>
+              <Text className="mt-6 text-center text-[28px] font-extrabold leading-9 text-slateink sm:text-[32px] sm:leading-10">
+                Welcome
+              </Text>
+              <Text className="max-w-[330px] text-center text-[22px] leading-9 text-slateink sm:text-[22px] sm:leading-10">
+                Sign up to get started
+              </Text>
             </View>
 
             <Pressable
-              className="mt-7 items-center rounded-[18px] bg-pharmacy-600 py-[17px] active:bg-pharmacy-700"
-              onPress={() => router.push('/login')}>
-              <Text className="text-base font-bold text-white">Continue to Login</Text>
+              className="mt-10 self-center rounded-full bg-pharmacy-600 px-12 py-4 active:bg-pharmacy-700"
+              onPress={() => router.push('/register')}>
+              <Text className="text-sm font-bold text-white uppercase">sign up</Text>
             </Pressable>
-          </View>
 
-          <View className="gap-3.5">
-            <View className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-950/5">
-              <Text className="text-[13px] font-bold uppercase tracking-[0.6px] text-pharmacy-600">
-                Fast access
+            <Text className="mt-5 text-center text-lg leading-6 text-slate-500">
+              Already have an account?{' '}
+              <Text className="font-bold text-pharmacy-600" onPress={() => router.push('/login')}>
+                Log in
               </Text>
-              <Text className="mt-2 text-[20px] font-bold leading-7 text-slateink">
-                24/7 order placement
-              </Text>
-            </View>
-            <View className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-950/5">
-              <Text className="text-[13px] font-bold uppercase tracking-[0.6px] text-pharmacy-600">
-                Built for trust
-              </Text>
-              <Text className="mt-2 text-[20px] font-bold leading-7 text-slateink">
-                Clear dosing and delivery steps
-              </Text>
-            </View>
-          </View>
-
-          <View className="rounded-3xl bg-emerald-50 p-5">
-            <Text className="text-lg font-bold text-slateink">Suggested brand color</Text>
-            <Text className="mt-2 text-[15px] leading-[23px] text-slate-600">
-              Use pharmacy teal{' '}
-              <Text className="font-extrabold text-pharmacy-600">#0F766E</Text>. It feels
-              clinical, reliable, and fresh without looking too cold.
             </Text>
           </View>
         </View>

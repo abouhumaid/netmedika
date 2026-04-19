@@ -22,45 +22,29 @@ def hash_password(password: str) -> str:
 
 
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
-def get_profile(token: str = None, db: Session = Depends(get_db)):
-    
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization token required"
-        )
-    
-    user = get_current_user(token, db)
-    return UserResponse.from_orm(user)
+def get_profile(current_user: User = Depends(get_current_user)):
+    return UserResponse.model_validate(current_user, from_attributes=True)
 
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 def change_password(
     request: ChangePasswordRequest,
-    token: str = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Change user password (requires Authorization header with Bearer token)
     """
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization token required"
-        )
-    
     try:
-        user = get_current_user(token, db)
-        
         # Verify current password
-        if not verify_password(request.current_password, user.password_hash):
+        if not verify_password(request.current_password, current_user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Current password is incorrect"
             )
         
         # Update password
-        user.password_hash = hash_password(request.new_password)
+        current_user.password_hash = hash_password(request.new_password)
         db.commit()
         
         return {"message": "Password changed successfully"}

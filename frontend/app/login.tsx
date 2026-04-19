@@ -1,86 +1,67 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { z } from 'zod';
 
-type FloatingFieldProps = {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address';
-};
+import { AuthSubmitButton, BackArrowButton, FloatingField } from '@/components/auth-ui';
+import { Snackbar } from '@/components/snackbar';
+import { loginUser } from '@/lib/auth-api';
+import { saveAuthSession } from '@/lib/auth-session';
+import { consumePendingFlashToast } from '@/lib/flash-toast';
 
-function FloatingField({
-  label,
-  value,
-  onChangeText,
-  secureTextEntry,
-  keyboardType = 'default',
-}: FloatingFieldProps) {
-  const [isFocused, setIsFocused] = useState(false);
-  const animated = useRef(new Animated.Value(value ? 1 : 0)).current;
-  const active = isFocused || value.length > 0;
+const loginSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+});
 
-  useEffect(() => {
-    Animated.timing(animated, {
-      toValue: active ? 1 : 0,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  }, [active, animated]);
-
-  const labelStyle = useMemo(
-    () => ({
-      top: animated.interpolate({
-        inputRange: [0, 1],
-        outputRange: [18, 8],
-      }),
-      fontSize: animated.interpolate({
-        inputRange: [0, 1],
-        outputRange: [16, 12],
-      }),
-      color: active ? '#0F766E' : '#64748B',
-    }),
-    [active, animated]
-  );
-
-  return (
-    <View
-      className={`relative min-h-[72px] justify-center rounded-[18px] border bg-[#FCFFFE] px-4 pt-[18px] ${
-        active ? 'border-pharmacy-600' : 'border-[#CFE9E4]'
-      }`}>
-      <Animated.Text style={[styles.floatingLabel, labelStyle]}>
-        {label}
-      </Animated.Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className="pb-2 pt-3 text-base text-slateink"
-        selectionColor="#0F766E"
-        keyboardType={keyboardType}
-        autoCapitalize="none"
-        secureTextEntry={secureTextEntry}
-      />
-    </View>
-  );
-}
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarTone, setSnackbarTone] = useState<'success' | 'error'>('success');
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+  });
+
+  useEffect(() => {
+    const pendingToast = consumePendingFlashToast();
+
+    if (pendingToast) {
+      setSnackbarMessage(pendingToast.message);
+      setSnackbarTone(pendingToast.tone);
+    }
+  }, []);
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      const response = await loginUser(values);
+      await saveAuthSession({
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token,
+      });
+      router.replace('/(tabs)');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to sign in right now. Try again.';
+      setSnackbarMessage(message);
+      setSnackbarTone('error');
+    }
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-[#F4FFFC]">
@@ -90,9 +71,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="mx-auto flex-1 w-full max-w-[560px] px-4 pb-7 pt-2.5 sm:px-5">
           <View className="flex-row items-center justify-between">
-            <Pressable onPress={() => router.back()} hitSlop={10}>
-              <Text className="text-[15px] font-bold text-pharmacy-600">Back</Text>
-            </Pressable>
+            <BackArrowButton />
             <Text className="overflow-hidden rounded-full bg-pharmacy-100 px-3 py-2 text-[12px] font-bold uppercase tracking-[0.4px] text-pharmacy-600">
               Secure sign in
             </Text>
@@ -109,29 +88,48 @@ export default function LoginScreen() {
           </View>
 
           <View className="mt-6 gap-4 rounded-[28px] bg-white p-5 shadow-sm shadow-slate-950/10 sm:p-6">
-            <FloatingField
-              label="Email address"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <FloatingField
+                  label="Email address"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="email-address"
+                  errorMessage={errors.email?.message}
+                />
+              )}
             />
-            <FloatingField
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
+
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <FloatingField
+                  label="Password"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  secureTextEntry
+                  errorMessage={errors.password?.message}
+                />
+              )}
             />
 
             <Pressable className="self-end">
               <Text className="text-sm font-semibold text-pharmacy-600">Forgot password?</Text>
             </Pressable>
 
-            <Pressable className="items-center rounded-[18px] bg-pharmacy-600 py-[17px] active:bg-pharmacy-700">
-              <Text className="text-base font-bold text-white">Log In</Text>
-            </Pressable>
+            <AuthSubmitButton
+              label={isSubmitting ? 'Logging In...' : 'Log In'}
+              onPress={onSubmit}
+              disabled={isSubmitting}
+            />
           </View>
 
-          <Text className="mt-5 text-center text-sm leading-[21px] text-slate-500">
+          <Text className="mt-5 text-center leading-[21px] text-slate-500">
             New account?{' '}
             <Text className="font-bold text-pharmacy-600" onPress={() => router.push('/register')}>
               Register here
@@ -139,14 +137,12 @@ export default function LoginScreen() {
           </Text>
         </View>
       </KeyboardAvoidingView>
+      <Snackbar
+        visible={!!snackbarMessage}
+        message={snackbarMessage}
+        tone={snackbarTone}
+        onHide={() => setSnackbarMessage('')}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  floatingLabel: {
-    position: 'absolute',
-    left: 16,
-    fontWeight: '600',
-  },
-});

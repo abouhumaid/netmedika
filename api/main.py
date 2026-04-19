@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from controllers.order_route import router as order_router
 from controllers.auth_route import router as auth_router
+from controllers.profile_route import router as profile_router
 
 app = FastAPI()
 
@@ -17,6 +18,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(profile_router)
 app.include_router(order_router)
 
 
