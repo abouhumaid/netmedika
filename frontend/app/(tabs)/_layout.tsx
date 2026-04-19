@@ -11,7 +11,7 @@ const ACCENT = '#0F766E';
 
 const TABS = [
   { name: 'index',   label: 'Home',    icon: 'home-outline'    as const, iconActive: 'home'            as const },
-  { name: 'order',   label: 'Orders',  icon: 'receipt-outline' as const, iconActive: 'receipt'         as const },
+  { name: 'orders',  label: 'Orders',  icon: 'receipt-outline' as const, iconActive: 'receipt'         as const },
   { name: 'cart',    label: 'Cart',    icon: 'bag-outline'     as const, iconActive: 'bag'             as const },
   { name: 'profile', label: 'Profile', icon: 'person-outline'  as const, iconActive: 'person'          as const },
 ] as const;

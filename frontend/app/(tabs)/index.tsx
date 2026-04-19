@@ -230,26 +230,6 @@ export default function DashboardScreen() {
               ))}
             </View>
 
-            {/* ── Cart banner ── */}
-            <Pressable onPress={() => router.push('/cart')} className="mt-5 active:opacity-90">
-              <View className="flex-row items-center justify-between rounded-[18px] border border-teal-200 bg-white px-5 py-4 shadow-sm">
-                <View className="flex-row items-center gap-3">
-                  <View className="h-10 w-10 items-center justify-center rounded-full bg-teal-50">
-                    <Ionicons name="bag" size={20} color="#0F766E" />
-                  </View>
-                  <View>
-                    <Text className="text-[14px] font-black text-[#0F172A]">Your Cart</Text>
-                    <Text className="text-[12px] text-slate-400">3 items · ₺120 ready</Text>
-                  </View>
-                </View>
-                <View className="flex-row items-center gap-2">
-                  <View className="rounded-full bg-teal-700 px-3 py-1">
-                    <Text className="text-[12px] font-bold text-white">Checkout</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
-                </View>
-              </View>
-            </Pressable>
 
             {/* ── Disclaimer ── */}
             <View className="mt-5 overflow-hidden rounded-[20px] border border-amber-200 bg-amber-50">
