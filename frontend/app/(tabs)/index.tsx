@@ -21,7 +21,7 @@ const QUICK_ACTIONS = [
   {
     label: 'Lab Test',
     icon: 'flask'         as const,
-    route: '/orders',
+    route: '/',
     bg: '#4F46E5',
     glow: '#818CF8',
   },
@@ -178,7 +178,7 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                   <Text className="text-[26px] font-black leading-[32px] text-white">
-                    Welcome back,{'\n'}{firstName}
+                    Welcome {firstName}
                   </Text>
                   <Text className="mt-2 text-[13px] leading-[20px] text-teal-100/90">
                     Fast medication delivery & lab tests at your fingertips.

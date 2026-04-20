@@ -19,7 +19,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.abouhumaida.frontend",
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro",
@@ -45,6 +47,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "79f37994-5873-42c9-a3dc-bcc0bcbb8066"
+      }
+    },
+    "owner": "abouhumaida"
   }
 }
