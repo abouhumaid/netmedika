@@ -1,6 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React, { useMemo, useState, useEffect } from 'react';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -185,45 +187,53 @@ function CartItem({
 // ─── CartScreen ───────────────────────────────────────────────────────────────
 
 export default function CartScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarTone, setSnackbarTone] = useState<'success' | 'error'>('success');
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadOrders = useCallback(async (isMounted = () => true) => {
+    setIsLoading(true);
 
-    async function loadOrders() {
-      try {
-        const token = await getAccessToken();
-        if (!token) {
-          if (isMounted) {
-            setSnackbarMessage('Please sign in to view your orders');
-            setSnackbarTone('error');
-            setIsLoading(false);
-          }
-          return;
-        }
-
-        const response = await fetchOrders(token);
-        if (isMounted) {
-          const items = response.orders.map(mapApiOrderToItem);
-          setOrders(items);
-        }
-      } catch (error) {
-        if (isMounted) {
-          const message = error instanceof Error ? error.message : 'Failed to load orders';
-          setSnackbarMessage(message);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        if (isMounted()) {
+          setOrders([]);
+          setSnackbarMessage('Please sign in to view your orders');
           setSnackbarTone('error');
         }
-      } finally {
-        if (isMounted) setIsLoading(false);
+        return;
       }
-    }
 
-    loadOrders();
-    return () => { isMounted = false; };
+      const response = await fetchOrders(token);
+      if (isMounted()) {
+        const items = response.orders.map(mapApiOrderToItem);
+        setOrders(items);
+      }
+    } catch (error) {
+      if (isMounted()) {
+        const message = error instanceof Error ? error.message : 'Failed to load orders';
+        setSnackbarMessage(message);
+        setSnackbarTone('error');
+      }
+    } finally {
+      if (isMounted()) setIsLoading(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+
+      loadOrders(() => isMounted);
+
+      return () => {
+        isMounted = false;
+      };
+    }, [loadOrders])
+  );
 
   const subtotal = useMemo(
     () => orders.reduce((s, o) => s + o.qty * o.price, 0),
@@ -426,6 +436,7 @@ export default function CartScreen() {
         visible={!!snackbarMessage}
         message={snackbarMessage}
         tone={snackbarTone}
+        bottomOffset={tabBarHeight}
         onHide={() => setSnackbarMessage('')}
       />
     </SafeAreaView>

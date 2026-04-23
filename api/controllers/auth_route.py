@@ -29,7 +29,8 @@ def register(
     user = User(
         username=request.username,
         email=request.email,
-        password_hash=hash_password(request.password)
+        password_hash=hash_password(request.password),
+        role=request.role,
     )
 
     db.add(user)
@@ -55,7 +56,7 @@ def login(
 
     # Access Token
     access_token = create_token(
-        {"sub": str(user.id)},
+        {"sub": str(user.id), "ver": user.token_version},
         timedelta(minutes=ACCESS_MIN)
     )
 
@@ -119,7 +120,7 @@ def refresh(
     db.commit()
 
     access_token = create_token(
-        {"sub": str(user.id)},
+        {"sub": str(user.id), "ver": user.token_version},
         timedelta(minutes=ACCESS_MIN)
     )
 
@@ -135,6 +136,7 @@ def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    current_user.token_version += 1
 
     db.query(RefreshToken).filter(
         RefreshToken.user_id == current_user.id

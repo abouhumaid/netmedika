@@ -18,6 +18,11 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRole), default=UserRole.CUSTOMER, nullable=False)
+    token_version = Column(Integer, default=0, nullable=False)
     last_login = Column(String(100), nullable=True)
     
     orders = relationship("Order",back_populates="owner",cascade="all, delete-orphan")
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == UserRole.ADMIN

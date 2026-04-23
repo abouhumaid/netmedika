@@ -46,3 +46,39 @@ def test_order_authorization_bypass(client, auth_headers):
     other_user_id = "999"
     response = client.get(f"/api/v1/orders/user/{other_user_id}", headers=auth_headers)
     assert response.status_code == 403
+
+
+def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
+    create_response = client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Amoxicillin",
+            "delivery_address": "42 Herbert Macaulay Way, Yaba, Lagos",
+            "quantity": 1,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    all_orders_response = client.get("/api/v1/orders/all", headers=admin_headers)
+    assert all_orders_response.status_code == 200
+    assert any(order["order_id"] == order_id for order in all_orders_response.json()["orders"])
+
+    reject_response = client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "reject", "reason": "Prescription image is missing."},
+        headers=admin_headers,
+    )
+    assert reject_response.status_code == 200
+    assert reject_response.json()["order"]["status"] == "rejected"
+    assert reject_response.json()["order"]["rejection_reason"] == "Prescription image is missing."
+
+    accept_response = client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "accept"},
+        headers=admin_headers,
+    )
+    assert accept_response.status_code == 200
+    assert accept_response.json()["order"]["status"] == "verified"
+    assert accept_response.json()["order"]["rejection_reason"] is None

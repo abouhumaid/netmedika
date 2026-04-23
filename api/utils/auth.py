@@ -16,6 +16,7 @@ def get_current_user(
     payload = decode_token(token)
 
     user_id = payload.get("sub")
+    token_version = payload.get("ver")
     
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid token.")
@@ -26,6 +27,12 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
+        )
+
+    if token_version is None or token_version != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired"
         )
 
     return user

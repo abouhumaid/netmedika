@@ -1,16 +1,25 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type SnackbarProps = {
   visible: boolean;
   message: string;
   tone?: 'success' | 'error';
+  bottomOffset?: number;
   onHide: () => void;
 };
 
-export function Snackbar({ visible, message, tone = 'success', onHide }: SnackbarProps) {
+export function Snackbar({
+  visible,
+  message,
+  tone = 'success',
+  bottomOffset = 0,
+  onHide,
+}: SnackbarProps) {
   const translateY = useRef(new Animated.Value(120)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!visible || !message) {
@@ -69,8 +78,9 @@ export function Snackbar({ visible, message, tone = 'success', onHide }: Snackba
       style={{
         opacity,
         transform: [{ translateY }],
+        bottom: Math.max(insets.bottom, 12) + 12 + bottomOffset,
       }}
-      className="absolute bottom-6 left-4 right-4 z-50">
+      className="absolute left-4 right-4 z-50">
       <View className={`overflow-hidden rounded-[24px] ${palette.container} px-4 py-4 shadow-lg shadow-slate-950/20`}>
         <View className={`mb-3 h-1.5 w-14 rounded-full ${palette.accent}`} />
         <Text className="text-sm font-semibold leading-6 text-white">{message}</Text>

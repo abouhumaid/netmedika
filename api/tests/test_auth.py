@@ -47,6 +47,23 @@ def test_login_and_refresh_flow(client):
     assert refresh_res.json().get("refresh_token") != old_refresh
 
 
+def test_register_honors_admin_role(client):
+    register_res = client.post("/api/v1/auth/register", json={
+        "username": "adminuser",
+        "email": "admin@example.com",
+        "password": "securepassword123",
+        "role": "admin",
+    })
+    assert register_res.status_code == 201
+
+    login_res = client.post("/api/v1/auth/login", json={
+        "email": "admin@example.com",
+        "password": "securepassword123",
+    })
+    assert login_res.status_code == 200
+    assert login_res.json()["user"]["role"] == "admin"
+
+
 def test_logout_invalidates_refresh(client):
     # register + login to get tokens
     client.post(
@@ -69,3 +86,6 @@ def test_logout_invalidates_refresh(client):
     # The refresh token stored in DB should have been deleted; refreshing must fail
     refresh_res = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh})
     assert refresh_res.status_code == 401
+
+    profile_res = client.get("/api/v1/profile/me", headers=headers)
+    assert profile_res.status_code == 401

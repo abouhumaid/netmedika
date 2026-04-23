@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import Field
 from pydantic import BaseModel
 from models.order_model import *
+from enum import Enum
 
 class OderStatus(str):
     PENDING = "PENDING"
@@ -36,3 +37,13 @@ class OrderResponse(BaseModel):
 
 class OrderUpdateQuantity(BaseModel):
     quantity: int = Field(..., ge=1, le=99)
+
+
+class ReviewDecision(str, Enum):
+    ACCEPT = "accept"
+    REJECT = "reject"
+
+
+class ReviewOrderRequest(BaseModel):
+    decision: ReviewDecision
+    reason: Optional[str] = Field(default=None, max_length=1000)

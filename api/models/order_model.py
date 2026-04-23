@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Enum as SQLEnum, Integer
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Enum as SQLEnum, Integer, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -29,7 +29,7 @@ class Order(Base):
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, nullable=False)
     quantity = Column(Integer, default=1)
     delivery_address = Column(String(500), nullable=True)
-    # rejection_reason = Column(Text)
+    rejection_reason = Column(Text, nullable=True)
     # delivery_address = Column(String(500), nullable=False)
     
     delivery_fee = Column(Float, default=0.0)

@@ -108,14 +108,28 @@ def _serialize_order(order: Order) -> dict:
     """Convert an Order ORM object to a plain dict safe for JSON responses."""
     return {
         "order_id":           order.order_id,
+        "user_id":            order.user_id,
+        "user_name":          order.owner.username if order.owner else None,
+        "user_email":         order.owner.email if order.owner else None,
+        "dosage_form":        order.dosage_form,
+        "strength":           order.strength,
+        "frequency":          order.frequency,
         "medication_name":    order.medication_name,
         "prescription_image": order.prescription_image,
         "quantity":           order.quantity,
         "delivery_address":   order.delivery_address,
         "status":             order.status.value if hasattr(order.status, "value") else order.status,
+        "rejection_reason":   order.rejection_reason,
         "created_at":         order.created_at.isoformat(),
         "updated_at":         order.updated_at.isoformat(),
     }
+
+
+def _require_admin(current_user: User) -> User:
+    user = _require_auth(current_user)
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return user
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -184,6 +198,7 @@ async def create_order(
             prescription_image=image_path,
             quantity=          quantity,
             delivery_address=  delivery_address.strip() if delivery_address else None,
+            rejection_reason=  None,
             delivery_fee=      delivery_fee,
             total_amount=      total_amount,
             status=            OrderStatus.PENDING,
@@ -369,3 +384,90 @@ async def get_user_orders(
         "total_orders": total_orders,
         "orders":       [_serialize_order(o) for o in orders],
     }
+
+
+@router.get("/all", response_model=dict)
+async def get_all_orders(
+    status: str | None = Query(default=None),
+    search: str | None = Query(default=None, min_length=1),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+
+    query = db.query(Order).join(User, Order.user_id == User.id)
+
+    if status:
+        normalized_status = status.strip().lower()
+        try:
+            query = query.filter(Order.status == OrderStatus(normalized_status))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid order status filter.") from exc
+
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            (Order.order_id.ilike(term))
+            | (Order.medication_name.ilike(term))
+            | (Order.delivery_address.ilike(term))
+            | (User.username.ilike(term))
+            | (User.email.ilike(term))
+        )
+
+    total_orders = query.count()
+    orders = (
+        query.order_by(Order.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "total_orders": total_orders,
+        "orders": [_serialize_order(order) for order in orders],
+    }
+
+
+@router.patch("/{order_id}/review", response_model=dict)
+async def review_order(
+    order_id: str,
+    payload: ReviewOrderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+
+    try:
+        order = db.query(Order).filter(Order.order_id == order_id).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found.")
+
+        if payload.decision == ReviewDecision.REJECT:
+            reason = (payload.reason or "").strip()
+            if not reason:
+                raise HTTPException(status_code=400, detail="Rejection reason is required.")
+            order.status = OrderStatus.REJECTED
+            order.rejection_reason = reason
+        else:
+            order.status = OrderStatus.VERIFIED
+            order.rejection_reason = None
+
+        order.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(order)
+
+        action = "accepted" if payload.decision == ReviewDecision.ACCEPT else "rejected"
+        return {
+            "success": True,
+            "message": f"Order {action} successfully.",
+            "order": _serialize_order(order),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to review order %s: %s", order_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")

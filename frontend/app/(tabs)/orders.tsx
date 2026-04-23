@@ -17,8 +17,8 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { Snackbar } from '@/components/snackbar';
 import Header from '@/components/header';
 import { getAccessToken } from '@/lib/auth-session';
@@ -458,6 +458,7 @@ function AddressModal({
 // ─── OrderScreen ──────────────────────────────────────────────────────────────
 
 export default function OrderScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const [medType,   setMedType]   = useState('');
   const [medName,   setMedName]   = useState('');
   const [strength,  setStrength]  = useState('');
@@ -503,10 +504,6 @@ export default function OrderScreen() {
       });
     }
   }, []);
-
-  function getApiBaseUrl() {
-    return (process.env.EXPO_PUBLIC_API_URL?.trim() ?? 'http://100.53.230.81').replace(/\/$/, '');
-  }
 
   async function pickImageNative() {
     try {
@@ -558,11 +555,6 @@ export default function OrderScreen() {
       setSnackMsg(`✓ Prescription uploaded! Order ID: ${order.order_id}`);
       setFilePreview(null);
       setPrescriptionAddress('');
-      
-      // Navigate to cart to show newly created order after 2 seconds
-      setTimeout(() => {
-        router.push('/(tabs)/cart');
-      }, 2000);
     } catch (err: any) {
       setSnackTone('error');
       setSnackMsg(err?.message ?? 'Upload failed');
@@ -614,11 +606,6 @@ export default function OrderScreen() {
         setMedName('');
         setStrength('');
         setFrequency('');
-
-        // Navigate to cart after 2 seconds to show the new order
-        setTimeout(() => {
-          router.push('/(tabs)/cart');
-        }, 2000);
       } catch (err: any) {
         setSnackTone('error');
         setSnackMsg(err?.message ?? 'Failed to create order');
@@ -948,6 +935,7 @@ export default function OrderScreen() {
         visible={!!snackMsg}
         message={snackMsg}
         tone={snackTone}
+        bottomOffset={tabBarHeight}
         onHide={() => setSnackMsg('')}
       />
     </SafeAreaView>
