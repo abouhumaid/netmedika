@@ -118,6 +118,8 @@ def _serialize_order(order: Order) -> dict:
         "prescription_image": order.prescription_image,
         "quantity":           order.quantity,
         "delivery_address":   order.delivery_address,
+        "delivery_fee":       order.delivery_fee,
+        "total_amount":       order.total_amount,
         "status":             order.status.value if hasattr(order.status, "value") else order.status,
         "rejection_reason":   order.rejection_reason,
         "created_at":         order.created_at.isoformat(),
@@ -453,6 +455,8 @@ async def review_order(
         else:
             order.status = OrderStatus.VERIFIED
             order.rejection_reason = None
+            if payload.delivery_fee is not None:
+                order.delivery_fee = payload.delivery_fee
 
         order.updated_at = datetime.utcnow()
 

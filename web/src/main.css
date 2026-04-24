@@ -7,6 +7,20 @@
     color-scheme: light;
     --app-bg: #f0fdf9;
     --app-sidebar: linear-gradient(180deg, #0f766e 0%, #115e59 100%);
+    --app-surface: #ffffff;
+    --app-surface-soft: #f0fdfa;
+    --app-border: #ccfbf1;
+    --app-text: #0f172a;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --app-bg: #020617;
+    --app-sidebar: linear-gradient(180deg, #042f2e 0%, #0f172a 100%);
+    --app-surface: #0f172a;
+    --app-surface-soft: #111827;
+    --app-border: #1f2937;
+    --app-text: #e2e8f0;
   }
 
   * {
@@ -26,6 +40,7 @@
       radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 28%),
       radial-gradient(circle at bottom left, rgba(15, 118, 110, 0.08), transparent 24%),
       var(--app-bg);
+    color: var(--app-text);
   }
 
   a {
@@ -45,6 +60,10 @@
 }
 
 @layer utilities {
+  .dark {
+    color-scheme: dark;
+  }
+
   .bg-app {
     background:
       radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 28%),

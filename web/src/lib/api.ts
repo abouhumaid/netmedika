@@ -6,10 +6,10 @@ type RetriableRequestConfig = {
   headers?: Record<string, string>
 }
 
-const baseURL = (import.meta.env.VITE_API_BASE_URL?.trim() || 'http://100.53.230.81').replace(/\/$/, '')
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() || 'http://100.53.230.81').replace(/\/$/, '')
 
 export const api = axios.create({
-  baseURL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,7 +34,7 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const refreshResponse = await axios.post(`${baseURL}/api/v1/auth/refresh`, {
+        const refreshResponse = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
           refresh_token: session.refreshToken,
         })
 

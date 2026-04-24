@@ -47,3 +47,4 @@ class ReviewDecision(str, Enum):
 class ReviewOrderRequest(BaseModel):
     decision: ReviewDecision
     reason: Optional[str] = Field(default=None, max_length=1000)
+    delivery_fee: Optional[float] = Field(default=None, ge=0)

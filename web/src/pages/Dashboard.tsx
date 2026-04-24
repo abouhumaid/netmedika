@@ -64,24 +64,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[30px] bg-gradient-to-br from-[#0F766E] via-[#14B8A6] to-[#ECFDF5] p-6 text-white shadow-xl shadow-teal-900/15">
-        <div className="max-w-3xl">
-          <div className="inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em]">
-            Netmedika Admin Dashboard
-          </div>
-          <h1 className="mt-5 text-4xl font-black tracking-tight">
-            {user?.username ? `${user.username.split(' ')[0]},` : 'Admin,'} your full order queue is live.
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/90">
-            Review every pharmacy request in one place, keep pending orders moving, and send clear rejection reasons when a request needs more information.
-          </p>
-        </div>
-      </section>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total Orders" value={orders.length} note="All orders submitted by app users." />
-        <MetricCard label="Pending Review" value={metrics.pending} note="Orders waiting for an admin decision." />
-        <MetricCard label="Accepted" value={metrics.accepted} note="Orders approved for the next fulfillment step." />
-        <MetricCard label="Rejected" value={metrics.rejected} note={`${metrics.prescriptions} include prescription uploads.`} />
+        <MetricCard label="Total Orders" value={orders.length} note="" />
+        <MetricCard label="Pending Review" value={metrics.pending} note="" />
+        <MetricCard label="Accepted" value={metrics.accepted} note="" />
+        <MetricCard label="Rejected" value={metrics.rejected} note="" />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">

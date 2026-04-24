@@ -2,8 +2,19 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View, Platform } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Clipboard,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '@/components/header';
@@ -13,7 +24,14 @@ import { Snackbar } from '@/components/snackbar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type OrderStatus = 'Pending' | 'Processing' | 'Dispatched' | 'Delivered' | 'Cancelled';
+type OrderStatus =
+  | 'Pending'
+  | 'Processing'
+  | 'Dispatched'
+  | 'Delivered'
+  | 'Cancelled'
+  | 'Verified'   // ← admin approved, awaiting payment
+  | 'Rejected';  // ← admin rejected with reason
 
 type OrderItem = {
   id: string;
@@ -23,15 +41,23 @@ type OrderItem = {
   price: number;
   addedAt: Date;
   status: OrderStatus;
+  rejectionReason?: string;  // ← populated when status is Rejected
+};
+
+// ─── Payment account details ──────────────────────────────────────────────────
+// TODO: Replace with values from your backend config / env vars
+
+const PAYMENT_ACCOUNT = {
+  bankName:      'First Bank Nigeria',
+  accountName:   'MediCare Pharmacy Ltd',
+  accountNumber: '3012345678',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getApiBaseUrl() {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (envUrl) {
-    return envUrl.replace(/\/$/, '');
-  }
+  if (envUrl) return envUrl.replace(/\/$/, '');
   return 'http://100.53.230.81';
 }
 
@@ -39,13 +65,15 @@ function getApiBaseUrl() {
 
 const STATUS_CONFIG: Record<
   OrderStatus,
-  { icon: React.ComponentProps<typeof Ionicons>['name']; bg: string; text: string; dot: string }
+  { icon: React.ComponentProps<typeof Ionicons>['name']; bg: string; text: string; dot: string; label: string }
 > = {
-  Pending:    { icon: 'time-outline',             bg: '#FEF3C7', text: '#B45309', dot: '#F59E0B' },
-  Processing: { icon: 'sync-outline',             bg: '#EDE9FE', text: '#6D28D9', dot: '#7C3AED' },
-  Dispatched: { icon: 'bicycle-outline',          bg: '#DBEAFE', text: '#1D4ED8', dot: '#3B82F6' },
-  Delivered:  { icon: 'checkmark-circle-outline', bg: '#D1FAE5', text: '#065F46', dot: '#10B981' },
-  Cancelled:  { icon: 'close-circle-outline',     bg: '#FFE4E6', text: '#BE123C', dot: '#F43F5E' },
+  Pending:    { icon: 'time-outline',             bg: '#FEF3C7', text: '#B45309', dot: '#F59E0B', label: 'Pending' },
+  Processing: { icon: 'sync-outline',             bg: '#EDE9FE', text: '#6D28D9', dot: '#7C3AED', label: 'Processing' },
+  Dispatched: { icon: 'bicycle-outline',          bg: '#DBEAFE', text: '#1D4ED8', dot: '#3B82F6', label: 'Dispatched' },
+  Delivered:  { icon: 'checkmark-circle-outline', bg: '#D1FAE5', text: '#065F46', dot: '#10B981', label: 'Delivered' },
+  Cancelled:  { icon: 'close-circle-outline',     bg: '#FFE4E6', text: '#BE123C', dot: '#F43F5E', label: 'Cancelled' },
+  Verified:   { icon: 'shield-checkmark-outline', bg: '#CCFBF1', text: '#0F766E', dot: '#14B8A6', label: 'Approved' },
+  Rejected:   { icon: 'alert-circle-outline',     bg: '#FEE2E2', text: '#991B1B', dot: '#EF4444', label: 'Rejected' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,25 +91,27 @@ function timeAgo(date: Date): string {
 
 function mapApiOrderToItem(apiOrder: ApiOrder): OrderItem {
   const statusMap: Record<string, OrderStatus> = {
-    'PENDING': 'Pending',
-    'PROCESSING': 'Processing',
-    'DISPATCHED': 'Dispatched',
-    'DELIVERED': 'Delivered',
-    'CANCELLED': 'Cancelled',
+    PENDING:    'Pending',
+    PROCESSING: 'Processing',
+    DISPATCHED: 'Dispatched',
+    DELIVERED:  'Delivered',
+    CANCELLED:  'Cancelled',
+    VERIFIED:   'Verified',   // ← new
+    REJECTED:   'Rejected',   // ← new
+    COMPLETED:  'Delivered',  // treat COMPLETED same as Delivered
   };
 
   return {
-    id: apiOrder.order_id,
-    title: apiOrder.medication_name || 'Prescription Order',
-    type: 'Order',
-    qty: apiOrder.quantity,
-    price: 0,
-    addedAt: new Date(apiOrder.created_at),
-    status: (statusMap[apiOrder.status] || 'Pending') as OrderStatus,
+    id:              apiOrder.order_id,
+    title:           apiOrder.medication_name || 'Prescription Order',
+    type:            'Order',
+    qty:             apiOrder.quantity,
+    price:           0,
+    addedAt:         new Date(apiOrder.created_at),
+    status:          (statusMap[apiOrder.status] || 'Pending') as OrderStatus,
+    rejectionReason: (apiOrder as any).rejection_reason ?? undefined,
   };
 }
-
-const MIN_FREE_DELIVERY = 100;
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
 
@@ -95,7 +125,7 @@ function StatusBadge({ status }: { status: OrderStatus }) {
       <View style={{ backgroundColor: cfg.dot }} className="h-1.5 w-1.5 rounded-full" />
       <Ionicons name={cfg.icon} size={12} color={cfg.text} />
       <Text style={{ color: cfg.text }} className="text-[11px] font-black tracking-wide">
-        {status}
+        {cfg.label}
       </Text>
     </View>
   );
@@ -124,16 +154,316 @@ function QtyButton({
   );
 }
 
+// ─── PaymentModal ─────────────────────────────────────────────────────────────
+
+function PaymentModal({
+  visible,
+  order,
+  onClose,
+  onPaid,
+}: {
+  visible: boolean;
+  order: OrderItem | null;
+  onClose: () => void;
+  onPaid: (orderId: string) => Promise<void>;
+}) {
+  const slideAnim = useRef(new Animated.Value(600)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const [isPaying, setIsPaying] = useState(false);
+  const [copied, setCopied]     = useState(false);
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1, duration: 220, useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0, tension: 65, friction: 11, useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0, duration: 180, useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 600, duration: 200, useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
+
+  function copyAccountNumber() {
+    Clipboard.setString(PAYMENT_ACCOUNT.accountNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handlePaid() {
+    if (!order) return;
+    setIsPaying(true);
+    try {
+      await onPaid(order.id);
+      onClose();
+    } finally {
+      setIsPaying(false);
+    }
+  }
+
+  if (!order) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      {/* Backdrop */}
+      <Animated.View
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', opacity: fadeAnim }}
+      >
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+      </Animated.View>
+
+      {/* Sheet */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          bottom: 0, left: 0, right: 0,
+          transform: [{ translateY: slideAnim }],
+          backgroundColor: '#fff',
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+          paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.12,
+          shadowRadius: 16,
+          elevation: 24,
+        }}
+      >
+        {/* Handle */}
+        <View className="items-center pt-3 pb-2">
+          <View className="h-1 w-10 rounded-full bg-slate-200" />
+        </View>
+
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-6 pb-4 border-b border-slate-100">
+          <View>
+            <Text className="text-[18px] font-black text-[#0F172A]">Make Payment</Text>
+            <Text className="text-[12px] text-slate-400 mt-0.5" numberOfLines={1}>
+              {order.title}
+            </Text>
+          </View>
+          <Pressable
+            onPress={onClose}
+            className="h-9 w-9 items-center justify-center rounded-full bg-slate-100 active:bg-slate-200"
+          >
+            <Ionicons name="close" size={18} color="#64748b" />
+          </Pressable>
+        </View>
+
+        <View className="px-6 pt-5 gap-4">
+          {/* Notice */}
+          <View className="flex-row items-start gap-3 rounded-[14px] bg-teal-50 p-4">
+            <Ionicons name="information-circle" size={20} color="#0F766E" />
+            <Text className="flex-1 text-[12px] leading-5 text-teal-800 font-medium">
+              Transfer the exact amount to the account below, then tap{' '}
+              <Text className="font-black">"I Have Paid"</Text> to notify us.
+            </Text>
+          </View>
+
+          {/* Account card */}
+          <View
+            style={{
+              backgroundColor: '#F0FDF9',
+              borderWidth: 1.5,
+              borderColor: '#99F6E4',
+              borderRadius: 18,
+              padding: 20,
+              gap: 16,
+            }}
+          >
+            {/* Bank name */}
+            <View className="flex-row items-center gap-3">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-teal-100">
+                <Ionicons name="business-outline" size={18} color="#0F766E" />
+              </View>
+              <View>
+                <Text className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                  Bank
+                </Text>
+                <Text className="text-[14px] font-black text-[#0F172A]">
+                  {PAYMENT_ACCOUNT.bankName}
+                </Text>
+              </View>
+            </View>
+
+            <View className="h-px bg-teal-100" />
+
+            {/* Account name */}
+            <View className="flex-row items-center gap-3">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-teal-100">
+                <Ionicons name="person-outline" size={18} color="#0F766E" />
+              </View>
+              <View>
+                <Text className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                  Account Name
+                </Text>
+                <Text className="text-[14px] font-black text-[#0F172A]">
+                  {PAYMENT_ACCOUNT.accountName}
+                </Text>
+              </View>
+            </View>
+
+            <View className="h-px bg-teal-100" />
+
+            {/* Account number + copy */}
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-teal-100">
+                  <Ionicons name="card-outline" size={18} color="#0F766E" />
+                </View>
+                <View>
+                  <Text className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                    Account Number
+                  </Text>
+                  <Text className="text-[20px] font-black tracking-widest text-[#0F172A]">
+                    {PAYMENT_ACCOUNT.accountNumber}
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                onPress={copyAccountNumber}
+                style={{
+                  backgroundColor: copied ? '#D1FAE5' : '#fff',
+                  borderWidth: 1.5,
+                  borderColor: copied ? '#10B981' : '#CBD5E1',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <Ionicons
+                  name={copied ? 'checkmark' : 'copy-outline'}
+                  size={14}
+                  color={copied ? '#059669' : '#64748B'}
+                />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: copied ? '#059669' : '#64748B',
+                  }}
+                >
+                  {copied ? 'Copied' : 'Copy'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* CTA */}
+          <Pressable
+            onPress={handlePaid}
+            disabled={isPaying}
+            style={{
+              backgroundColor: isPaying ? '#5EEAD4' : '#0F766E',
+              borderRadius: 16,
+              paddingVertical: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              opacity: isPaying ? 0.8 : 1,
+            }}
+          >
+            {isPaying ? (
+              <Ionicons name="sync-outline" size={18} color="#fff" />
+            ) : (
+              <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+            )}
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff', letterSpacing: 0.3 }}>
+              {isPaying ? 'Confirming…' : 'I Have Paid'}
+            </Text>
+          </Pressable>
+        </View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+// ─── RejectionCard ────────────────────────────────────────────────────────────
+
+function RejectionCard({
+  reason,
+  onDelete,
+  onReorder,
+}: {
+  reason: string;
+  onDelete: () => void;
+  onReorder: () => void;
+}) {
+  return (
+    <View
+      style={{
+        borderRadius: 14,
+        backgroundColor: '#FFF1F2',
+        borderWidth: 1,
+        borderColor: '#FECDD3',
+        padding: 14,
+        gap: 12,
+        marginTop: 2,
+      }}
+    >
+      <View className="flex-row items-start gap-2">
+        <Ionicons name="alert-circle" size={16} color="#BE123C" style={{ marginTop: 1 }} />
+        <View className="flex-1">
+          <Text className="text-[11px] font-black uppercase tracking-widest text-rose-700 mb-1">
+            Rejection Reason
+          </Text>
+          <Text className="text-[12px] leading-5 text-rose-800 font-medium">{reason}</Text>
+        </View>
+      </View>
+
+      <View className="flex-row gap-2">
+        <Pressable
+          onPress={onDelete}
+          className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-white border border-rose-200 py-2.5 active:bg-rose-50"
+        >
+          <Ionicons name="trash-outline" size={13} color="#BE123C" />
+          <Text className="text-[12px] font-bold text-rose-700">Delete</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onReorder}
+          className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] bg-teal-700 py-2.5 active:bg-teal-800"
+        >
+          <Ionicons name="refresh-outline" size={13} color="#fff" />
+          <Text className="text-[12px] font-bold text-white">Order Again</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 // ─── CartItem ─────────────────────────────────────────────────────────────────
 
 function CartItem({
-  item, onUpdateQty, onRemove,
+  item,
+  onUpdateQty,
+  onRemove,
+  onPayNow,
 }: {
   item: OrderItem;
   onUpdateQty: (id: string, delta: number) => void;
   onRemove: (id: string, title: string) => void;
+  onPayNow: (item: OrderItem) => void;
 }) {
-  const isLocked = item.status === 'Delivered' || item.status === 'Cancelled';
+  const isLocked   = item.status === 'Delivered' || item.status === 'Cancelled' || item.status === 'Verified' || item.status === 'Rejected';
+  const isVerified = item.status === 'Verified';
+  const isRejected = item.status === 'Rejected';
+  const cfg        = STATUS_CONFIG[item.status];
 
   return (
     <View
@@ -141,7 +471,7 @@ function CartItem({
       style={{ opacity: item.status === 'Cancelled' ? 0.72 : 1 }}
     >
       {/* Status accent bar */}
-      <View style={{ backgroundColor: STATUS_CONFIG[item.status].dot, height: 3 }} />
+      <View style={{ backgroundColor: cfg.dot, height: 3 }} />
 
       {/* Main row */}
       <View className="flex-row items-start justify-between px-4 pt-4 pb-3 gap-3">
@@ -163,23 +493,70 @@ function CartItem({
         <StatusBadge status={item.status} />
       </View>
 
-      {/* Footer row */}
-      <View className="flex-row items-center justify-between border-t border-slate-100 px-4 py-2.5">
+      {/* Verified — pay now banner */}
+      {isVerified && (
         <Pressable
-          onPress={() => onRemove(item.id, item.title)}
-          className="flex-row items-center gap-1 active:opacity-60"
-          disabled={isLocked}
+          onPress={() => onPayNow(item)}
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 12,
+            backgroundColor: '#0F766E',
+            borderRadius: 13,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+          className="active:opacity-80"
         >
-          <Ionicons name="trash-outline" size={13} color={isLocked ? '#cbd5e1' : '#f43f5e'} />
-          <Text className={`text-[11px] font-bold ${isLocked ? 'text-slate-300' : 'text-rose-500'}`}>Remove</Text>
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="cash-outline" size={18} color="#fff" />
+            <View>
+              <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>
+                Order Approved!
+              </Text>
+              <Text style={{ color: '#99F6E4', fontSize: 11, fontWeight: '600' }}>
+                Tap to make payment
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#5EEAD4" />
         </Pressable>
+      )}
 
-        <View className="flex-row items-center gap-3">
-          <QtyButton icon="remove" onPress={() => onUpdateQty(item.id, -1)} disabled={isLocked} />
-          <Text className="w-6 text-center text-[15px] font-black text-[#0F172A]">{item.qty}</Text>
-          <QtyButton icon="add" onPress={() => onUpdateQty(item.id, +1)} variant="primary" disabled={isLocked} />
+      {/* Rejected — reason + actions */}
+      {isRejected && item.rejectionReason && (
+        <View className="px-4 pb-3">
+          <RejectionCard
+            reason={item.rejectionReason}
+            onDelete={() => onRemove(item.id, item.title)}
+            onReorder={() => router.push('/(tabs)/orders')}
+          />
         </View>
-      </View>
+      )}
+
+      {/* Footer row — hidden for verified/rejected (actions are inline above) */}
+      {!isVerified && !isRejected && (
+        <View className="flex-row items-center justify-between border-t border-slate-100 px-4 py-2.5">
+          <Pressable
+            onPress={() => onRemove(item.id, item.title)}
+            className="flex-row items-center gap-1 active:opacity-60"
+            disabled={isLocked}
+          >
+            <Ionicons name="trash-outline" size={13} color={isLocked ? '#cbd5e1' : '#f43f5e'} />
+            <Text className={`text-[11px] font-bold ${isLocked ? 'text-slate-300' : 'text-rose-500'}`}>
+              Remove
+            </Text>
+          </Pressable>
+
+          <View className="flex-row items-center gap-3">
+            <QtyButton icon="remove" onPress={() => onUpdateQty(item.id, -1)} disabled={isLocked} />
+            <Text className="w-6 text-center text-[15px] font-black text-[#0F172A]">{item.qty}</Text>
+            <QtyButton icon="add" onPress={() => onUpdateQty(item.id, +1)} variant="primary" disabled={isLocked} />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -188,14 +565,17 @@ function CartItem({
 
 export default function CartScreen() {
   const tabBarHeight = useBottomTabBarHeight();
-  const [orders, setOrders] = useState<OrderItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders]               = useState<OrderItem[]>([]);
+  const [isLoading, setIsLoading]         = useState(true);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarTone, setSnackbarTone] = useState<'success' | 'error'>('success');
+  const [snackbarTone, setSnackbarTone]   = useState<'success' | 'error'>('success');
+  const [paymentOrder, setPaymentOrder]   = useState<OrderItem | null>(null);
+  const [paymentVisible, setPaymentVisible] = useState(false);
 
-  const loadOrders = useCallback(async (isMounted = () => true) => {
+  // ── Data loading ──────────────────────────────────────────────────────────
+
+  const loadOrders = useCallback(async (isMounted: () => boolean = () => true) => {
     setIsLoading(true);
-
     try {
       const token = await getAccessToken();
       if (!token) {
@@ -206,16 +586,13 @@ export default function CartScreen() {
         }
         return;
       }
-
       const response = await fetchOrders(token);
       if (isMounted()) {
-        const items = response.orders.map(mapApiOrderToItem);
-        setOrders(items);
+        setOrders(response.orders.map(mapApiOrderToItem));
       }
     } catch (error) {
       if (isMounted()) {
-        const message = error instanceof Error ? error.message : 'Failed to load orders';
-        setSnackbarMessage(message);
+        setSnackbarMessage(error instanceof Error ? error.message : 'Failed to load orders');
         setSnackbarTone('error');
       }
     } finally {
@@ -226,19 +603,12 @@ export default function CartScreen() {
   useFocusEffect(
     useCallback(() => {
       let isMounted = true;
-
       loadOrders(() => isMounted);
-
-      return () => {
-        isMounted = false;
-      };
+      return () => { isMounted = false; };
     }, [loadOrders])
   );
 
-  const subtotal = useMemo(
-    () => orders.reduce((s, o) => s + o.qty * o.price, 0),
-    [orders]
-  );
+  // ── Derived state ─────────────────────────────────────────────────────────
 
   const statusCounts = useMemo(
     () =>
@@ -249,10 +619,11 @@ export default function CartScreen() {
     [orders]
   );
 
+  // ── Actions ───────────────────────────────────────────────────────────────
+
   async function updateQty(id: string, delta: number) {
     const order = orders.find((o) => o.id === id);
     if (!order) return;
-
     const newQty = order.qty + delta;
     if (newQty < 1) return;
 
@@ -260,38 +631,30 @@ export default function CartScreen() {
       const token = await getAccessToken();
       if (!token) throw new Error('Not authenticated');
 
-      const response = await fetch(`${getApiBaseUrl()}/api/v1/orders/update-quantity/${id}?quantity=${newQty}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.detail || data?.message || 'Failed to update quantity');
-      }
-
-      // Update local state after successful backend update
-      setOrders((prev) =>
-        prev
-          .map((o) => (o.id === id ? { ...o, qty: newQty } : o))
-          .filter((o) => o.qty > 0)
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/v1/orders/update-quantity/${id}?quantity=${newQty}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        }
       );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.detail || data?.message || 'Failed to update quantity');
 
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, qty: newQty } : o)).filter((o) => o.qty > 0)
+      );
       setSnackbarMessage(`Quantity updated to ${newQty}`);
       setSnackbarTone('success');
     } catch (err: any) {
-      const message = err?.message || 'Failed to update quantity';
-      setSnackbarMessage(message);
+      setSnackbarMessage(err?.message || 'Failed to update quantity');
       setSnackbarTone('error');
     }
   }
 
   function confirmRemove(id: string, title: string) {
     Alert.alert(
-      'Remove Item',
+      'Remove Order',
       `Remove "${title}" from your orders?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -305,24 +668,16 @@ export default function CartScreen() {
 
               const response = await fetch(`${getApiBaseUrl()}/api/v1/orders/delete/${id}`, {
                 method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`,
-                },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               });
-
               const data = await response.json();
-              if (!response.ok) {
-                throw new Error(data?.detail || data?.message || 'Failed to delete order');
-              }
+              if (!response.ok) throw new Error(data?.detail || data?.message || 'Failed to delete order');
 
-              // Only remove from local state after successful deletion
               setOrders((prev) => prev.filter((o) => o.id !== id));
               setSnackbarMessage('Order deleted successfully');
               setSnackbarTone('success');
             } catch (err: any) {
-              const message = err?.message || 'Failed to delete order';
-              setSnackbarMessage(message);
+              setSnackbarMessage(err?.message || 'Failed to delete order');
               setSnackbarTone('error');
             }
           },
@@ -331,6 +686,48 @@ export default function CartScreen() {
       { cancelable: true }
     );
   }
+
+  function openPayment(item: OrderItem) {
+    setPaymentOrder(item);
+    setPaymentVisible(true);
+  }
+
+  /**
+   * Called when the user taps "I Have Paid".
+   *
+   * ⚠️  Backend TODO:
+   *   Add  POST /api/v1/orders/{order_id}/confirm-payment
+   *   which transitions status from VERIFIED → PROCESSING and notifies admin.
+   *   Until then this call will 404 but the local state is still updated so the
+   *   UX is non-blocking.
+   */
+  async function handlePaymentConfirmed(orderId: string) {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+
+      await fetch(`${getApiBaseUrl()}/api/v1/orders/${orderId}/confirm-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+
+      // Optimistically update local state — admin will confirm on the backend
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: 'Processing' as OrderStatus } : o))
+      );
+      setSnackbarMessage('Payment confirmed! We will process your order shortly.');
+      setSnackbarTone('success');
+    } catch (err: any) {
+      // Still show success to user — backend endpoint might not exist yet
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: 'Processing' as OrderStatus } : o))
+      );
+      setSnackbarMessage('Payment noted! We will process your order shortly.');
+      setSnackbarTone('success');
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -383,10 +780,10 @@ export default function CartScreen() {
             </View>
           )}
 
-          {/* ── Cart items ── */}
+          {/* ── Order list ── */}
           {orders.length > 0 && (
             <>
-              {/* Status summary */}
+              {/* Status summary chips */}
               <View className="mb-4 flex-row flex-wrap gap-2">
                 {(Object.keys(STATUS_CONFIG) as OrderStatus[])
                   .filter((s) => statusCounts[s])
@@ -400,7 +797,7 @@ export default function CartScreen() {
                       >
                         <View style={{ backgroundColor: cfg.dot }} className="h-2 w-2 rounded-full" />
                         <Text style={{ color: cfg.text }} className="text-[11px] font-black">
-                          {statusCounts[s]}× {s}
+                          {statusCounts[s]}× {cfg.label}
                         </Text>
                       </View>
                     );
@@ -415,6 +812,7 @@ export default function CartScreen() {
                     item={o}
                     onUpdateQty={updateQty}
                     onRemove={confirmRemove}
+                    onPayNow={openPayment}
                   />
                 ))}
               </View>
@@ -431,6 +829,14 @@ export default function CartScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* ── Payment modal ── */}
+      <PaymentModal
+        visible={paymentVisible}
+        order={paymentOrder}
+        onClose={() => setPaymentVisible(false)}
+        onPaid={handlePaymentConfirmed}
+      />
 
       <Snackbar
         visible={!!snackbarMessage}

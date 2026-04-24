@@ -76,9 +76,10 @@ def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
 
     accept_response = client.patch(
         f"/api/v1/orders/{order_id}/review",
-        json={"decision": "accept"},
+        json={"decision": "accept", "delivery_fee": 2500},
         headers=admin_headers,
     )
     assert accept_response.status_code == 200
     assert accept_response.json()["order"]["status"] == "verified"
     assert accept_response.json()["order"]["rejection_reason"] is None
+    assert accept_response.json()["order"]["delivery_fee"] == 2500

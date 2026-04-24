@@ -51,6 +51,8 @@ export type ApiOrder = {
   prescription_image?: string | null
   quantity: number
   delivery_address?: string | null
+  delivery_fee?: number | null
+  total_amount?: number | null
   status: string
   rejection_reason?: string | null
   created_at: string
@@ -65,6 +67,7 @@ export type OrdersResponse = {
 export type ReviewOrderPayload = {
   decision: 'accept' | 'reject'
   reason?: string
+  delivery_fee?: number
 }
 
 export type ReviewOrderResponse = {

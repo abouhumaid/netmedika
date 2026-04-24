@@ -1,9 +1,13 @@
 import React from 'react'
+import { API_BASE_URL } from '../lib/api'
+import { getStoredTheme } from '../lib/theme'
 
 const settingsItems = [
   { label: 'Notifications', value: 'Enabled' },
   { label: 'Store timezone', value: 'Africa/Lagos' },
+  { label: 'Theme', value: getStoredTheme() === 'dark' ? 'Dark mode' : 'Light mode' },
   { label: 'API mode', value: 'Live backend' },
+  { label: 'API endpoint', value: API_BASE_URL },
 ]
 
 export default function Settings() {
