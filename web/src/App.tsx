@@ -19,9 +19,9 @@ export default function App(){
     <div className="min-h-screen">
       <main className={isAuthPage ? 'px-4 py-8 sm:px-6 lg:px-8' : ''}>
           <Routes>
-            <Route path="/login" element={<Login/>} />
+            <Route path="/" element={<Login/>} />
             <Route path="/register" element={<Register/>} />
-            <Route path="/" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+            <Route path="/dashboard" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
               <Route index element={<Dashboard/>} />
               <Route index element={<Dashboard/>} />
               <Route path="dashboard" element={<Dashboard/>} />
