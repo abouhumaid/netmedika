@@ -17,6 +17,12 @@ router = APIRouter(prefix="/api/v1/auth",tags=["Authentication"])
 ACCESS_MIN = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 15))
 REFRESH_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 30))
 
+
+def _require_admin(current_user: User) -> User:
+    if not current_user or not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return current_user
+
 @router.post("/register", status_code=201)
 def register(
     request: RegisterRequest,
@@ -29,7 +35,7 @@ def register(
     user = User(
         username=request.username,
         email=request.email,
-        password_hash=hash_password(request.password),
+        password_hash=hash_password(request.password.strip()),
         role=request.role,
     )
 
@@ -48,8 +54,11 @@ def login(
 
     user = db.query(User).filter(User.email == request.email).first()
 
+    # Trim the password to handle any whitespace issues
+    password = request.password.strip()
+
     if not user or not verify_password(
-        request.password,
+        password,
         user.password_hash
     ):
         raise HTTPException(401, "Invalid credentials")
@@ -80,6 +89,16 @@ def login(
         access_token=access_token,
         refresh_token=refresh_token
     )
+
+
+@router.get("/users", response_model=dict)
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    users = db.query(User).order_by(User.id.asc()).all()
+    return {"users": [UserResponse.from_orm(user) for user in users]}
 
 
 @router.post("/refresh", response_model=TokenResponse)

@@ -32,7 +32,7 @@ export default function Dashboard() {
     async function loadOrders() {
       try {
         const data = await orderService.listAll()
-        setOrders(data)
+        setOrders(data.orders)
       } catch (err) {
         await showErrorAlert(
           'Dashboard unavailable',
@@ -130,6 +130,19 @@ export default function Dashboard() {
           </div>
         </article>
       </section>
+
+      {/* Footer */}
+      <footer className="rounded-[28px] border border-teal-100 bg-white p-6 shadow-sm">
+        <div className="text-center">
+          <div className="text-sm font-semibold text-teal-700">NetMedika Admin Dashboard</div>
+          <div className="mt-2 text-xs text-slate-500">
+            © 2024 NetMedika Nigeria Ltd. All rights reserved.
+          </div>
+          <div className="mt-1 text-xs text-slate-400">
+            Version 1.0.0 • Last updated: {new Date().toLocaleDateString()}
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from controllers.order_route import router as order_router
 from controllers.auth_route import router as auth_router
 from controllers.profile_route import router as profile_router
 
 app = FastAPI()
+
+app.mount('/uploads', StaticFiles(directory='uploads'), name='uploads')
 
 # Configure CORS 
 app.add_middleware(

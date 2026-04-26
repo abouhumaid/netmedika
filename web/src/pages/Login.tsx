@@ -112,12 +112,12 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-6 text-sm text-slate-600">
-          Need a web admin account?{' '}
+        {/* <div className="mt-6 text-sm text-slate-600 text-center">
+          Need New Account ?{' '}
           <Link to="/register" className="font-semibold text-teal-700 transition hover:text-teal-900">
             Create one
           </Link>
-        </div>
+        </div> */}
       </section>
     </div>
   )

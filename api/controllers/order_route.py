@@ -320,10 +320,12 @@ async def delete_order(
     _require_auth(current_user)
 
     try:
-        order = db.query(Order).filter(
-            Order.order_id == order_id,
-            Order.user_id  == current_user.id,
-        ).first()
+        order = db.query(Order).filter(Order.order_id == order_id).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found.")
+
+        if order.user_id != current_user.id and not getattr(current_user, "is_admin", False):
+            raise HTTPException(status_code=403, detail="Not authorized to delete this order.")
 
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
@@ -432,6 +434,57 @@ async def get_all_orders(
     }
 
 
+@router.get("/{order_id}", response_model=dict)
+async def get_order(
+    order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_auth(current_user)
+
+    order = db.query(Order).filter(Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+
+    if order.user_id != current_user.id and not getattr(current_user, "is_admin", False):
+        raise HTTPException(status_code=403, detail="Not authorized to view this order.")
+
+    return {"order": _serialize_order(order)}
+    _require_admin(current_user)
+
+    query = db.query(Order).join(User, Order.user_id == User.id)
+
+    if status:
+        normalized_status = status.strip().lower()
+        try:
+            query = query.filter(Order.status == OrderStatus(normalized_status))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid order status filter.") from exc
+
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(
+            (Order.order_id.ilike(term))
+            | (Order.medication_name.ilike(term))
+            | (Order.delivery_address.ilike(term))
+            | (User.username.ilike(term))
+            | (User.email.ilike(term))
+        )
+
+    total_orders = query.count()
+    orders = (
+        query.order_by(Order.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "total_orders": total_orders,
+        "orders": [_serialize_order(order) for order in orders],
+    }
+
+
 @router.patch("/{order_id}/review", response_model=dict)
 async def review_order(
     order_id: str,
@@ -457,6 +510,9 @@ async def review_order(
             order.rejection_reason = None
             if payload.delivery_fee is not None:
                 order.delivery_fee = payload.delivery_fee
+                # For now, total_amount equals delivery_fee
+                # This can be extended to include medication costs in the future
+                order.total_amount = payload.delivery_fee
 
         order.updated_at = datetime.utcnow()
 
@@ -475,3 +531,102 @@ async def review_order(
         db.rollback()
         logger.error("Failed to review order %s: %s", order_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")
+
+@router.post("/{order_id}/confirm-payment", response_model=dict)
+async def confirm_payment(
+    order_id:     str,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+):
+    
+    _require_auth(current_user)
+
+    try:
+        order = db.query(Order).filter(
+            Order.order_id == order_id,
+            Order.user_id  == current_user.id,
+        ).first()
+
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found.")
+
+        if order.status != OrderStatus.VERIFIED:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot confirm payment for an order with status '{order.status.value}'. "
+                       "Only approved (VERIFIED) orders can be paid.",
+            )
+
+        order.status     = OrderStatus.PROCESSING
+        order.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(order)
+
+        logger.info(
+            "Payment confirmed by user %s for order %s — status → PROCESSING",
+            current_user.id, order_id,
+        )
+
+        return {
+            "success":   True,
+            "message":   "Payment confirmation received. Your order is now being processed.",
+            "order_id":  order.order_id,
+            "status":    order.status.value,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("Payment confirmation failed for order %s: %s", order_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")
+
+
+@router.post("/{order_id}/confirm-payment-receipt", response_model=dict)
+async def confirm_payment_receipt(
+    order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Admin confirms payment receipt after verifying transfer.
+    Transitions order: PROCESSING → PAID
+    """
+    _require_admin(current_user)
+
+    try:
+        order = db.query(Order).filter(Order.order_id == order_id).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found.")
+
+        if order.status != OrderStatus.PROCESSING:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot confirm payment receipt for an order with status '{order.status.value}'. "
+                       "Only processing orders can have payment confirmed.",
+            )
+
+        order.status = OrderStatus.PAID
+        order.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(order)
+
+        logger.info(
+            "Payment receipt confirmed by admin %s for order %s — status → PAID",
+            current_user.id, order_id,
+        )
+
+        return {
+            "success": True,
+            "message": "Payment receipt confirmed. Order marked as paid.",
+            "order": _serialize_order(order),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("Payment receipt confirmation failed for order %s: %s", order_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")
+

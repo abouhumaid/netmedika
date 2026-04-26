@@ -4,6 +4,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
+import Users from './pages/Users'
+import OrderDetail from './pages/OrderDetail'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import RequireAuth from './components/RequireAuth'
@@ -21,10 +23,13 @@ export default function App(){
             <Route path="/register" element={<Register/>} />
             <Route path="/" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
               <Route index element={<Dashboard/>} />
+              <Route index element={<Dashboard/>} />
               <Route path="dashboard" element={<Dashboard/>} />
               <Route path="dashboard/profile" element={<Profile/>} />
               <Route path="dashboard/settings" element={<Settings/>} />
+              <Route path="users" element={<Users/>} />
               <Route path="orders" element={<Orders/>} />
+              <Route path="orders/:orderId" element={<OrderDetail/>} />
             </Route>
           </Routes>
       </main>

@@ -48,8 +48,8 @@ type OrderItem = {
 // TODO: Replace with values from your backend config / env vars
 
 const PAYMENT_ACCOUNT = {
-  bankName:      'First Bank Nigeria',
-  accountName:   'MediCare Pharmacy Ltd',
+  bankName:      'Test Bank Nigeria',
+  accountName:   'NetMedika Nigeria Ltd',
   accountNumber: '3012345678',
 };
 
@@ -96,19 +96,22 @@ function mapApiOrderToItem(apiOrder: ApiOrder): OrderItem {
     DISPATCHED: 'Dispatched',
     DELIVERED:  'Delivered',
     CANCELLED:  'Cancelled',
-    VERIFIED:   'Verified',   // ← new
-    REJECTED:   'Rejected',   // ← new
-    COMPLETED:  'Delivered',  // treat COMPLETED same as Delivered
+    VERIFIED:   'Verified',
+    REJECTED:   'Rejected',
+    COMPLETED:  'Delivered',
+    PAID:       'Processing',
   };
+
+  const normalizedStatus = (apiOrder.status || '').toString().toUpperCase();
 
   return {
     id:              apiOrder.order_id,
     title:           apiOrder.medication_name || 'Prescription Order',
     type:            'Order',
     qty:             apiOrder.quantity,
-    price:           0,
+    price:           apiOrder.delivery_fee || 0,
     addedAt:         new Date(apiOrder.created_at),
-    status:          (statusMap[apiOrder.status] || 'Pending') as OrderStatus,
+    status:          (statusMap[normalizedStatus] || 'Pending') as OrderStatus,
     rejectionReason: (apiOrder as any).rejection_reason ?? undefined,
   };
 }
@@ -261,6 +264,27 @@ function PaymentModal({
         </View>
 
         <View className="px-6 pt-5 gap-4">
+          {/* Amount to Pay */}
+          {order.price > 0 && (
+            <View
+              style={{
+                backgroundColor: '#F0FDF9',
+                borderWidth: 1.5,
+                borderColor: '#99F6E4',
+                borderRadius: 18,
+                padding: 16,
+              }}
+            >
+              <Text className="text-[12px] font-semibold uppercase tracking-widest text-slate-400">
+                Amount to Pay
+              </Text>
+              <View className="flex-row items-baseline gap-2 mt-2">
+                <Text className="text-[20px] font-black text-teal-700">₦{order.price.toFixed(2)}</Text>
+
+              </View>
+            </View>
+          )}
+
           {/* Notice */}
           <View className="flex-row items-start gap-3 rounded-[14px] bg-teal-50 p-4">
             <Ionicons name="information-circle" size={20} color="#0F766E" />
@@ -460,7 +484,13 @@ function CartItem({
   onRemove: (id: string, title: string) => void;
   onPayNow: (item: OrderItem) => void;
 }) {
-  const isLocked   = item.status === 'Delivered' || item.status === 'Cancelled' || item.status === 'Verified' || item.status === 'Rejected';
+  const isProcessing = item.status === 'Processing';
+  const isLocked     =
+    item.status === 'Delivered' ||
+    item.status === 'Cancelled' ||
+    item.status === 'Verified' ||
+    item.status === 'Rejected' ||
+    isProcessing;
   const isVerified = item.status === 'Verified';
   const isRejected = item.status === 'Rejected';
   const cfg        = STATUS_CONFIG[item.status];
@@ -468,7 +498,7 @@ function CartItem({
   return (
     <View
       className="overflow-hidden rounded-[18px] bg-white shadow-sm border border-slate-100"
-      style={{ opacity: item.status === 'Cancelled' ? 0.72 : 1 }}
+      style={{ opacity: item.status === 'Cancelled' ? 0.72 : isProcessing ? 0.88 : 1 }}
     >
       {/* Status accent bar */}
       <View style={{ backgroundColor: cfg.dot, height: 3 }} />
@@ -479,7 +509,8 @@ function CartItem({
           <Text className="text-[14px] font-black text-[#0F172A]" numberOfLines={1}>
             {item.title}
           </Text>
-          <View className="mt-0.5 flex-row items-center gap-2">
+          <Text className="text-[10px] font-bold text-teal-600 mt-1 tracking-wide">{item.id}</Text>
+          <View className="mt-1.5 flex-row items-center gap-2">
             <Text className="text-[11px] font-semibold text-slate-400">{item.type}</Text>
             <View className="h-1 w-1 rounded-full bg-slate-300" />
             <Text className="text-[11px] font-semibold text-slate-400">Qty: {item.qty}</Text>
@@ -492,6 +523,30 @@ function CartItem({
 
         <StatusBadge status={item.status} />
       </View>
+
+      {/* Processing — verification banner */}
+      {isProcessing && (
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginBottom: 12,
+            borderRadius: 13,
+            backgroundColor: '#FEF3C7',
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+          }}
+        >
+          <View className="flex-row items-start gap-2">
+            <Ionicons name="time-outline" size={16} color="#92400E" />
+            <View className="flex-1">
+              <Text className="text-[12px] font-bold text-amber-900">Payment being verified</Text>
+              <Text className="mt-1 text-[11px] text-amber-800">
+                Your order is currently under processing and payment verification. We will update it once review completes.
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Verified — pay now banner */}
       {isVerified && (
@@ -537,7 +592,7 @@ function CartItem({
       )}
 
       {/* Footer row — hidden for verified/rejected (actions are inline above) */}
-      {!isVerified && !isRejected && (
+      {!isVerified && !isRejected && !isProcessing && (
         <View className="flex-row items-center justify-between border-t border-slate-100 px-4 py-2.5">
           <Pressable
             onPress={() => onRemove(item.id, item.title)}
@@ -695,35 +750,39 @@ export default function CartScreen() {
   /**
    * Called when the user taps "I Have Paid".
    *
-   * ⚠️  Backend TODO:
-   *   Add  POST /api/v1/orders/{order_id}/confirm-payment
-   *   which transitions status from VERIFIED → PROCESSING and notifies admin.
-   *   Until then this call will 404 but the local state is still updated so the
-   *   UX is non-blocking.
+   * This should update the order status on the backend from VERIFIED → PROCESSING.
+   * If the network call fails, we do not force a local processing state so the
+   * cart always reflects backend truth on reload.
    */
   async function handlePaymentConfirmed(orderId: string) {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error('Not authenticated');
 
-      await fetch(`${getApiBaseUrl()}/api/v1/orders/${orderId}/confirm-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      });
-
-      // Optimistically update local state — admin will confirm on the backend
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: 'Processing' as OrderStatus } : o))
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/v1/orders/${encodeURIComponent(orderId)}/confirm-payment`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        }
       );
-      setSnackbarMessage('Payment confirmed! We will process your order shortly.');
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.detail || data?.message || 'Failed to confirm payment.');
+      }
+
+      const confirmedStatus = (data?.status || 'PROCESSING').toString().toUpperCase();
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, status: confirmedStatus === 'VERIFIED' ? 'Verified' : 'Processing' as OrderStatus } : o
+        )
+      );
+      setSnackbarMessage(data?.message || 'Payment confirmed! We will process your order shortly.');
       setSnackbarTone('success');
     } catch (err: any) {
-      // Still show success to user — backend endpoint might not exist yet
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: 'Processing' as OrderStatus } : o))
-      );
-      setSnackbarMessage('Payment noted! We will process your order shortly.');
-      setSnackbarTone('success');
+      setSnackbarMessage(err?.message || 'Unable to confirm payment. Please try again.');
+      setSnackbarTone('error');
     }
   }
 

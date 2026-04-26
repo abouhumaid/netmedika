@@ -39,6 +39,12 @@ export type LoginResponse = {
 
 export type ProfileResponse = SessionUser
 
+export type UserResponse = SessionUser
+
+export type UsersResponse = {
+  users: UserResponse[]
+}
+
 export type ApiOrder = {
   order_id: string
   user_id: number

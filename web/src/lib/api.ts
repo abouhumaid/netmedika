@@ -13,9 +13,15 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: false,  // Don't send credentials for login/register
 })
 
 api.interceptors.request.use((config) => {
+  // Don't add auth header for login/register endpoints
+  if (config.url?.includes('/auth/login') || config.url?.includes('/auth/register')) {
+    return config
+  }
+
   const session = getSession()
   if (session?.accessToken) {
     config.headers = config.headers ?? {}

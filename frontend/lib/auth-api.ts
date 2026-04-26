@@ -151,7 +151,9 @@ export type Order = {
   prescription_image: string | null;
   quantity: number;
   delivery_address: string | null;
-  status: 'PENDING' | 'PROCESSING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED';
+  delivery_fee: number | null;
+  total_amount: number | null;
+  status: 'pending' | 'verified' | 'processing' | 'paid' | 'dispatched' | 'delivered' | 'completed' | 'cancelled' | 'rejected';
   created_at: string;
   updated_at: string;
 };
@@ -203,7 +205,7 @@ export type CreateOrderResponse = {
   prescription_image: string | null;
   quantity: number;
   delivery_address: string | null;
-  status: string;
+  status: 'pending' | 'verified' | 'processing' | 'paid' | 'dispatched' | 'delivered' | 'completed' | 'cancelled' | 'rejected';
   created_at: string;
   updated_at: string;
   message: string;

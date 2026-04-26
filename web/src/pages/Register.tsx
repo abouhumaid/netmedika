@@ -125,11 +125,11 @@ export default function Register() {
             type="submit"
             disabled={submitting}
           >
-            {submitting ? 'Creating admin...' : 'Create admin account'}
+            {submitting ? 'Creating account...' : 'Register'}
           </button>
         </form>
 
-        <div className="mt-6 text-sm text-slate-600">
+        <div className="mt-6 text-sm text-slate-600 text-center">
           Already have access?{' '}
           <Link to="/login" className="font-semibold text-teal-700 transition hover:text-teal-900">
             Sign in

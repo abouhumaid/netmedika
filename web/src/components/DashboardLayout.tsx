@@ -4,8 +4,8 @@ import { authService } from '../services/authService'
 import { applyTheme, getStoredTheme, saveTheme, type AppTheme } from '../lib/theme'
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/orders', label: 'Orders' }
+  { to: '/dashboard', label: 'Dashboard', icon: '🏠' },
+  { to: '/orders', label: 'Orders', icon: '📦' }
 ]
 
 export default function DashboardLayout() {
@@ -109,12 +109,13 @@ export default function DashboardLayout() {
                     if (window.innerWidth < 1024) setSidebarOpen(false)
                   }}
                   className={({ isActive }) =>
-                    `flex items-center rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                    `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                       isActive ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-50 hover:bg-white/10'
                     }`
                   }
                 >
-                  {item.label}
+                  <span className="text-lg">{item.icon}</span>
+                  <span>{item.label}</span>
                 </NavLink>
               ))}
             </nav>

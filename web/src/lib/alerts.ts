@@ -1,4 +1,5 @@
 import Swal from 'sweetalert2'
+import { API_BASE_URL } from './api'
 import { formatOrderDate, getOrderItems } from './order-ui'
 import type { ApiOrder } from './types'
 
@@ -88,10 +89,36 @@ export async function showAcceptOrderAlert(order: ApiOrder) {
   const createdAt = escapeHtml(formatOrderDate(order.created_at))
   const requestSummary = escapeHtml(getOrderItems(order))
 
-  const result = await Swal.fire({
-    ...baseOptions,
-    title: `Accept ${order.order_id}`,
-    html: `
+  const prescriptionUrl = order.prescription_image ? `${API_BASE_URL}/${order.prescription_image}` : null
+  const prescriptionSection = prescriptionUrl
+    ? `
+      <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+        <div style="padding:12px 14px;border-radius:16px;background:#f0fdfa;display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;">
+          <div>
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.14em;color:#0f766e;font-weight:700;">Order ID</div>
+            <div style="margin-top:4px;font-size:16px;font-weight:700;color:#0f172a;">${orderId}</div>
+          </div>
+          <a href="${prescriptionUrl}" target="_blank" rel="noreferrer" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:#0f766e;color:#ffffff;text-decoration:none;font-size:18px;">
+            📎
+          </a>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; margin-top:12px;">
+          <div style="padding:12px 14px;border-radius:16px;background:#f8fafc;">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.14em;color:#64748b;font-weight:700;">Customer</div>
+            <div style="margin-top:4px;font-size:15px;font-weight:600;color:#0f172a;">${customerName}</div>
+          </div>
+          <div style="padding:12px 14px;border-radius:16px;background:#f8fafc;">
+            <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.14em;color:#64748b;font-weight:700;">Time</div>
+            <div style="margin-top:4px;font-size:15px;font-weight:600;color:#0f172a;">${createdAt}</div>
+          </div>
+        </div>
+        <div style="padding:12px 14px;border-radius:16px;background:#f8fafc;">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.14em;color:#64748b;font-weight:700;">Request</div>
+          <div style="margin-top:4px;font-size:15px;font-weight:600;color:#0f172a;">${requestSummary}</div>
+        </div>
+      </div>
+    `
+    : `
       <div style="text-align:left;display:grid;gap:12px;">
         <div style="padding:12px 14px;border-radius:16px;background:#f0fdfa;">
           <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.14em;color:#0f766e;font-weight:700;">Order ID</div>
@@ -112,7 +139,12 @@ export async function showAcceptOrderAlert(order: ApiOrder) {
           <div style="margin-top:4px;font-size:15px;font-weight:600;color:#0f172a;">${requestSummary}</div>
         </div>
       </div>
-    `,
+    `
+
+  const result = await Swal.fire({
+    ...baseOptions,
+    title: `Accept ${order.order_id}`,
+    html: prescriptionSection,
     input: 'number',
     inputLabel: 'Order fee',
     inputValue: order.delivery_fee ?? '',
