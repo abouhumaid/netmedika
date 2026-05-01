@@ -98,7 +98,48 @@ def list_users(
 ):
     _require_admin(current_user)
     users = db.query(User).order_by(User.id.asc()).all()
-    return {"users": [UserResponse.from_orm(user) for user in users]}
+    return {
+        "users": [
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role.value if hasattr(user.role, "value") else user.role,
+            }
+            for user in users
+        ]
+    }
+
+
+@router.patch("/users/{user_id}/role", response_model=dict)
+def update_user_role(
+    user_id: int,
+    request: UpdateUserRoleRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _require_admin(current_user)
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+      raise HTTPException(status_code=404, detail="User not found.")
+
+    if user.id == current_user.id and request.role != UserRole.ADMIN:
+      raise HTTPException(status_code=400, detail="You cannot remove your own admin role.")
+
+    user.role = request.role
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "message": "User role updated successfully.",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role.value if hasattr(user.role, "value") else user.role,
+        },
+    }
 
 
 @router.post("/refresh", response_model=TokenResponse)

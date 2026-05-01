@@ -5,7 +5,8 @@ import { applyTheme, getStoredTheme, saveTheme, type AppTheme } from '../lib/the
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: '🏠' },
-  { to: '/orders', label: 'Orders', icon: '📦' }
+  { to: '/dashboard/orders', label: 'Orders', icon: '📦' },
+  { to: '/dashboard/users', label: 'Users', icon: '👥' },
 ]
 
 export default function DashboardLayout() {
@@ -59,13 +60,13 @@ export default function DashboardLayout() {
 
   async function handleLogout() {
     await authService.logout()
-    navigate('/login')
+    navigate('/')
   }
 
   function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const value = search.trim()
-    navigate(value ? `/orders?search=${encodeURIComponent(value)}` : '/orders')
+    navigate(value ? `/dashboard/orders?search=${encodeURIComponent(value)}` : '/dashboard/orders')
     if (window.innerWidth < 1024) setSidebarOpen(false)
   }
 

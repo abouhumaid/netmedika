@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { showAcceptOrderAlert, showConfirmAlert, showErrorAlert, showRejectReasonAlert, showSuccessAlert } from '../lib/alerts'
 import { formatOrderDate, formatOrderStatus, getOrderItems, getOrderStatusTone, getOrderType } from '../lib/order-ui'
@@ -35,7 +35,10 @@ export default function Orders() {
         skip,
         limit: pageSize,
       })
-      setOrders(data.orders)
+      const sortedOrders = [...data.orders].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      setOrders(sortedOrders)
       setTotalOrders(data.total_orders)
     } catch (err) {
       await showErrorAlert('Could not load orders', err instanceof Error ? err.message : 'Unable to load orders.')
@@ -46,6 +49,7 @@ export default function Orders() {
 
   useEffect(() => {
     setCurrentPage(1)
+    setLocalSearch(query)
     loadOrders(activeFilter, 1)
   }, [query, activeFilter])
 
@@ -95,7 +99,14 @@ export default function Orders() {
     try {
       await orderService.delete(order.order_id)
       await showSuccessAlert('Order deleted', `${order.order_id} was deleted successfully.`)
-      await loadOrders(activeFilter, currentPage)
+      const nextTotalOrders = Math.max(totalOrders - 1, 0)
+      const lastPage = Math.max(Math.ceil(nextTotalOrders / pageSize), 1)
+      const nextPage = Math.min(currentPage, lastPage)
+      if (nextPage !== currentPage) {
+        setCurrentPage(nextPage)
+      } else {
+        await loadOrders(activeFilter, nextPage)
+      }
     } catch (err) {
       await showErrorAlert('Delete failed', err instanceof Error ? err.message : 'Unable to delete order.')
     } finally {
@@ -118,18 +129,6 @@ export default function Orders() {
       setMutatingOrderId(null)
     }
   }
-
-  function navigateToOrder(orderId: string) {
-    navigate(`/orders/${encodeURIComponent(orderId)}`)
-  }
-
-  const insights = useMemo(() => {
-    const accepted = orders.filter((order) => order.status === 'verified').length
-    const pending = orders.filter((order) => order.status === 'pending').length
-    const rejected = orders.filter((order) => order.status === 'rejected').length
-
-    return { accepted, pending, rejected }
-  }, [orders])
 
   const [localSearch, setLocalSearch] = useState('')
   const navigate = useNavigate()
@@ -232,8 +231,7 @@ export default function Orders() {
                   return (
                     <tr
                       key={order.order_id}
-                      onClick={() => navigateToOrder(order.order_id)}
-                      className="cursor-pointer border-b border-slate-100 align-top last:border-b-0 transition hover:bg-slate-50/70"
+                      className="border-b border-slate-100 align-top last:border-b-0 transition hover:bg-slate-50/70"
                     >
                       <td className="px-4 py-4">
                         <div className="font-bold text-slate-900">{order.order_id}</div>
@@ -249,7 +247,7 @@ export default function Orders() {
                         <div className="font-medium text-slate-700">{getOrderItems(order)}</div>
                         <div className="mt-2 text-xs text-slate-500">Qty: {order.quantity}</div>
                         <div className="mt-2 text-xs text-slate-500">
-                          View details: {order.order_id} • {order.user_name || 'Unknown customer'} • {formatOrderDate(order.created_at)}
+                          Order ref: {order.order_id} • {order.user_name || 'Unknown customer'} • {formatOrderDate(order.created_at)}
                         </div>
                         {typeof order.delivery_fee === 'number' ? (
                           <div className="mt-2 text-xs font-semibold text-teal-700">Fee: {order.delivery_fee}</div>

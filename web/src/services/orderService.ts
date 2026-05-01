@@ -4,7 +4,7 @@ import type { ApiOrder, OrdersResponse, ReviewOrderPayload, ReviewOrderResponse 
 export const orderService = {
   async listAll(params?: { search?: string; status?: string; skip?: number; limit?: number }) {
     try {
-      const response = await api.get<OrdersResponse>('/api/v1/orders/all', {
+      const response = await api.get<OrdersResponse | { orders?: ApiOrder[]; total_orders?: number }>('/api/v1/orders/all', {
         params: {
           search: params?.search || undefined,
           status: params?.status || undefined,
@@ -12,7 +12,11 @@ export const orderService = {
           limit: params?.limit || 50,
         },
       })
-      return response.data
+      const payload = response.data
+      return {
+        orders: payload?.orders ?? [],
+        total_orders: payload?.total_orders ?? 0,
+      }
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Unable to load orders right now.'))
     }
@@ -29,8 +33,8 @@ export const orderService = {
 
   async getById(orderId: string) {
     try {
-      const response = await api.get<{ order: ApiOrder }>(`/api/v1/orders/${orderId}`)
-      return response.data.order
+      const response = await api.get<{ order?: ApiOrder } & ApiOrder>(`/api/v1/orders/${encodeURIComponent(orderId)}`)
+      return response.data.order ?? (response.data as ApiOrder)
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Unable to load order details right now.'))
     }
@@ -38,8 +42,14 @@ export const orderService = {
 
   async delete(orderId: string) {
     try {
-      const response = await api.delete(`/api/v1/orders/delete/${orderId}`)
-      return response.data
+      const encodedOrderId = encodeURIComponent(orderId)
+      try {
+        const response = await api.delete(`/api/v1/orders/delete/${encodedOrderId}`)
+        return response.data
+      } catch (error) {
+        const response = await api.post(`/api/v1/orders/delete/${encodedOrderId}`, {})
+        return response.data
+      }
     } catch (error) {
       throw new Error(getApiErrorMessage(error, 'Unable to delete order right now.'))
     }

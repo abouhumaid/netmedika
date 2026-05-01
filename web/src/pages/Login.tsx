@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { showErrorAlert } from '../lib/alerts'
 import { getFieldErrors, loginSchema, type LoginFormValues } from '../lib/validation'
 import { authService } from '../services/authService'
@@ -38,7 +38,7 @@ export default function Login() {
 
     try {
       const user = await authService.login(values)
-      navigate(user.role === 'admin' ? '/dashboard' : '/login', { replace: true })
+      navigate(user.role === 'admin' ? '/dashboard' : '/', { replace: true })
     } catch (err) {
       await showErrorAlert('Sign in failed', err instanceof Error ? err.message : 'Unable to sign in.')
     } finally {
@@ -112,12 +112,12 @@ export default function Login() {
           </button>
         </form>
 
-        {/* <div className="mt-6 text-sm text-slate-600 text-center">
-          Need New Account ?{' '}
-          <Link to="/register" className="font-semibold text-teal-700 transition hover:text-teal-900">
+        <div className="mt-6 text-center text-sm text-slate-600">
+          Need New Account?{' '}
+          <a href="/register" className="font-semibold text-teal-700 transition hover:text-teal-900">
             Create one
-          </Link>
-        </div> */}
+          </a>
+        </div>
       </section>
     </div>
   )

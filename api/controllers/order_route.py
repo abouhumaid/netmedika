@@ -317,18 +317,15 @@ async def delete_order(
     db:           Session = Depends(get_db),
     current_user: User    = Depends(get_current_user),
 ):
-    _require_auth(current_user)
+    user = _require_auth(current_user)
 
     try:
         order = db.query(Order).filter(Order.order_id == order_id).first()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
-        if order.user_id != current_user.id and not getattr(current_user, "is_admin", False):
+        if order.user_id != user.id and not user.is_admin:
             raise HTTPException(status_code=403, detail="Not authorized to delete this order.")
-
-        if not order:
-            raise HTTPException(status_code=404, detail="Order not found.")
 
         if order.status == OrderStatus.COMPLETED:
             raise HTTPException(status_code=400, detail="Cannot delete a completed order.")
@@ -356,6 +353,15 @@ async def delete_order(
         db.rollback()
         logger.error("Failed to delete order %s: %s", order_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")
+
+
+@router.post("/delete/{order_id}", response_model=dict)
+async def delete_order_via_post(
+    order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await delete_order(order_id=order_id, db=db, current_user=current_user)
 
 
 @router.get("/user/{user_id}", response_model=dict)
@@ -450,39 +456,6 @@ async def get_order(
         raise HTTPException(status_code=403, detail="Not authorized to view this order.")
 
     return {"order": _serialize_order(order)}
-    _require_admin(current_user)
-
-    query = db.query(Order).join(User, Order.user_id == User.id)
-
-    if status:
-        normalized_status = status.strip().lower()
-        try:
-            query = query.filter(Order.status == OrderStatus(normalized_status))
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid order status filter.") from exc
-
-    if search:
-        term = f"%{search.strip()}%"
-        query = query.filter(
-            (Order.order_id.ilike(term))
-            | (Order.medication_name.ilike(term))
-            | (Order.delivery_address.ilike(term))
-            | (User.username.ilike(term))
-            | (User.email.ilike(term))
-        )
-
-    total_orders = query.count()
-    orders = (
-        query.order_by(Order.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-
-    return {
-        "total_orders": total_orders,
-        "orders": [_serialize_order(order) for order in orders],
-    }
 
 
 @router.patch("/{order_id}/review", response_model=dict)
@@ -629,4 +602,3 @@ async def confirm_payment_receipt(
         db.rollback()
         logger.error("Payment receipt confirmation failed for order %s: %s", order_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")
-

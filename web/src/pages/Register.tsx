@@ -39,7 +39,7 @@ export default function Register() {
     try {
       await authService.register({ ...values, role: 'admin' })
       const user = await authService.login({ email: values.email, password: values.password })
-      navigate(user.role === 'admin' ? '/dashboard' : '/login', { replace: true })
+      navigate(user.role === 'admin' ? '/dashboard' : '/', { replace: true })
     } catch (err) {
       await showErrorAlert('Registration failed', err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
@@ -131,7 +131,7 @@ export default function Register() {
 
         <div className="mt-6 text-sm text-slate-600 text-center">
           Already have access?{' '}
-          <Link to="/login" className="font-semibold text-teal-700 transition hover:text-teal-900">
+          <Link to="/" className="font-semibold text-teal-700 transition hover:text-teal-900">
             Sign in
           </Link>
         </div>

@@ -83,3 +83,51 @@ def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
     assert accept_response.json()["order"]["status"] == "verified"
     assert accept_response.json()["order"]["rejection_reason"] is None
     assert accept_response.json()["order"]["delivery_fee"] == 2500
+
+
+def test_admin_can_fetch_order_detail(client, auth_headers, admin_headers):
+    create_response = client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Ibuprofen",
+            "delivery_address": "15 Marina Road, Lagos Island, Lagos",
+            "quantity": 3,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    detail_response = client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
+    assert detail_response.status_code == 200
+    assert detail_response.json()["order"]["order_id"] == order_id
+    assert detail_response.json()["order"]["medication_name"] == "Ibuprofen"
+
+
+def test_admin_can_delete_rejected_order(client, auth_headers, admin_headers):
+    create_response = client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Cefuroxime",
+            "delivery_address": "22 Allen Avenue, Ikeja, Lagos",
+            "quantity": 1,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    reject_response = client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "reject", "reason": "Incomplete order information."},
+        headers=admin_headers,
+    )
+    assert reject_response.status_code == 200
+
+    delete_response = client.delete(f"/api/v1/orders/delete/{order_id}", headers=admin_headers)
+    assert delete_response.status_code == 200
+    assert delete_response.json()["success"] is True
+    assert delete_response.json()["order_id"] == order_id
+
+    detail_response = client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
+    assert detail_response.status_code == 404

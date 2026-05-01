@@ -4,6 +4,8 @@ export type SessionUser = {
   id: number
   username: string
   email: string
+  phone?: string | null
+  avatarUrl?: string | null
   role: UserRole
 }
 
@@ -40,6 +42,10 @@ export type LoginResponse = {
 export type ProfileResponse = SessionUser
 
 export type UserResponse = SessionUser
+
+export type UpdateUserRolePayload = {
+  role: UserRole
+}
 
 export type UsersResponse = {
   users: UserResponse[]

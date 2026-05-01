@@ -89,3 +89,26 @@ def test_logout_invalidates_refresh(client):
 
     profile_res = client.get("/api/v1/profile/me", headers=headers)
     assert profile_res.status_code == 401
+
+
+def test_admin_can_list_users_and_update_role(client, admin_headers):
+    register_res = client.post("/api/v1/auth/register", json={
+        "username": "regularuser",
+        "email": "regular@example.com",
+        "password": "Password123!",
+    })
+    assert register_res.status_code == 201
+
+    users_res = client.get("/api/v1/auth/users", headers=admin_headers)
+    assert users_res.status_code == 200
+    users = users_res.json()["users"]
+    regular_user = next(user for user in users if user["email"] == "regular@example.com")
+    assert regular_user["role"] == "customer"
+
+    update_res = client.patch(
+        f"/api/v1/auth/users/{regular_user['id']}/role",
+        json={"role": "admin"},
+        headers=admin_headers,
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["user"]["role"] == "admin"
