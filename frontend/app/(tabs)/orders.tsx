@@ -38,25 +38,12 @@ const MEDICINE_TYPES = [
   { label: 'Patch',     color: '#B45309' },
 ] as const;
 
-const FREQUENCIES = [
-  { label: 'Once daily',        sub: '1× per day',          icon: 'sunny-outline'       as const },
-  { label: 'Twice daily',       sub: '2× per day',          icon: 'sync-outline'        as const },
-  { label: 'Three times daily', sub: '3× per day',          icon: 'refresh-outline'     as const },
-  { label: 'Every 8 hours',     sub: '3× per day (fixed)',  icon: 'time-outline'        as const },
-  { label: 'Every 12 hours',    sub: '2× per day (fixed)',  icon: 'timer-outline'       as const },
-  { label: 'Weekly',            sub: '1× per week',         icon: 'calendar-outline'    as const },
-  { label: 'As needed',         sub: 'PRN / when required', icon: 'help-circle-outline' as const },
-] as const;
-
-const STRENGTH_HINTS = ['250mg', '500mg', '1000mg', '5ml', '10ml'] as const;
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 type MedType   = typeof MEDICINE_TYPES[number];
-type FreqType  = typeof FREQUENCIES[number];
-type DropdownOption = (MedType | FreqType) & { icon?: IconName };
+type DropdownOption = MedType & { icon?: IconName; sub?: string };
 
 // ─── RevealRow ────────────────────────────────────────────────────────────────
 
@@ -461,8 +448,6 @@ export default function OrderScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const [medType,   setMedType]   = useState('');
   const [medName,   setMedName]   = useState('');
-  const [strength,  setStrength]  = useState('');
-  const [frequency, setFrequency] = useState('');
 
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploading,   setUploading]   = useState(false);
@@ -474,12 +459,7 @@ export default function OrderScreen() {
   const [snackMsg,  setSnackMsg]  = useState('');
   const [snackTone, setSnackTone] = useState<'success' | 'error'>('success');
 
-  const showStrength  = medName.trim().length > 0;
-  const showFrequency = showStrength && strength.trim().length > 0;
-
-  const steps     = [!!medType, !!medName.trim(), !!strength.trim(), !!frequency] as const;
-  const progress  = steps.filter(Boolean).length;
-  const allFilled = steps.every(Boolean);
+  const allFilled = !!medName.trim() && !!medType;
 
   const btnScale   = useRef(new Animated.Value(1)).current;
   const prevFilled = useRef(false);
@@ -591,8 +571,6 @@ export default function OrderScreen() {
           {
             medicine_name: medName?.trim(),
             dosage_form: medType?.trim(),
-            strength: strength?.trim(),
-            frequency: frequency?.trim(),
             quantity: 1,
             delivery_address: address?.trim(),
           }
@@ -604,8 +582,6 @@ export default function OrderScreen() {
         // Reset the form for next order
         setMedType('');
         setMedName('');
-        setStrength('');
-        setFrequency('');
       } catch (err: any) {
         setSnackTone('error');
         setSnackMsg(err?.message ?? 'Failed to create order');
@@ -625,40 +601,40 @@ export default function OrderScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        <Header title="Place Order" subtitle="Fill in your prescription details" showBack />
+        <Header title="Place Order" subtitle="Choose the medicine type and name to get started" showBack />
 
         <View className="px-4 pt-4">
-
-          {/* ── Progress tracker ── */}
-          <View className="mb-5 rounded-[16px] bg-white px-4 py-4 shadow-sm border border-slate-100">
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-[13px] font-black text-slate-600">Order Progress</Text>
-              <View className="flex-row items-center gap-1">
-                <Text className="text-[13px] font-black text-teal-700">{progress}</Text>
-                <Text className="text-[13px] text-slate-400"> / 4 steps</Text>
-              </View>
-            </View>
-            <View className="flex-row gap-1.5 mb-3">
-              {steps.map((done, i) => (
-                <View key={i} className={`h-2 flex-1 rounded-full ${done ? 'bg-teal-600' : 'bg-slate-100'}`} />
-              ))}
-            </View>
-            <View className="flex-row justify-between">
-              {(['Type', 'Name', 'Strength', 'Frequency'] as const).map((label, i) => (
-                <View key={label} className="items-center gap-1">
-                  <StepBadge step={i + 1} active={progress === i} done={steps[i]} />
-                  <Text className={`text-[9px] font-bold ${steps[i] ? 'text-teal-600' : 'text-slate-400'}`}>
-                    {label}
-                  </Text>
+          {/* ── Medicine order form ── */}
+          <SectionCard
+            step={1}
+            active={!allFilled}
+            done={allFilled}
+            title="Medicine Details"
+            subtitle="Enter the medicine name first, then choose the type"
+          >
+            <View className="gap-4">
+              <View>
+                <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  Medicine Name
+                </Text>
+                <View
+                  className={`flex-row items-center rounded-[14px] border-2 px-3 py-3.5
+                    ${medName.trim() ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white'}`}
+                >
+                  
+                  <TextInput
+                    value={medName}
+                    onChangeText={setMedName}
+                    placeholder="e.g. Amoxicillin"
+                    placeholderTextColor="#CBD5E1"
+                    returnKeyType="next"
+                    className="flex-1 text-[13px] font-semibold text-[#0F172A]"
+                  />
+                  {medName.trim().length > 0 && <Ionicons name="checkmark-circle" size={15} color={TEAL} />}
                 </View>
-              ))}
-            </View>
-          </View>
+              </View>
 
-          {/* ── Step 1+2: Type & Name ── */}
-          <SectionCard step={1} active={!medType} done={!!medType} title="Medicine Details">
-            <View className="flex-row gap-3">
-              <View className="flex-1">
+              <View>
                 <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
                   Type
                 </Text>
@@ -669,93 +645,8 @@ export default function OrderScreen() {
                   onSelect={setMedType}
                 />
               </View>
-
-              <View className="flex-1">
-                <Text className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                  Name
-                </Text>
-                <View
-                  className={`flex-row items-center rounded-[14px] border-2 px-3 py-3.5
-                    ${medName.trim() ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white'}`}
-                >
-                  <Ionicons
-                    name="search-outline" size={15}
-                    color={medName.trim() ? TEAL : '#CBD5E1'}
-                    style={{ marginRight: 6 }}
-                  />
-                  <TextInput
-                    value={medName}
-                    onChangeText={(t) => {
-                      setMedName(t);
-                      if (!t.trim()) { setStrength(''); setFrequency(''); }
-                    }}
-                    placeholder="e.g. Amoxicillin"
-                    placeholderTextColor="#CBD5E1"
-                    returnKeyType="next"
-                    className="flex-1 text-[13px] font-semibold text-[#0F172A]"
-                  />
-                  {medName.trim().length > 0 && <Ionicons name="checkmark-circle" size={15} color={TEAL} />}
-                </View>
-              </View>
             </View>
           </SectionCard>
-
-          {/* ── Step 3: Strength ── */}
-          <RevealRow visible={showStrength}>
-            <SectionCard
-              step={3} active={showStrength && !strength.trim()} done={!!strength.trim()}
-              title="Medicine Strength" subtitle="e.g. 500mg · 5ml · 10mcg"
-            >
-              <View
-                className={`flex-row items-center gap-3 rounded-[14px] border-2 px-4 py-3.5
-                  ${strength.trim() ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white'}`}
-              >
-                <View className="h-8 w-8 items-center justify-center rounded-full bg-teal-50">
-                  <Ionicons name="barbell-outline" size={16} color={TEAL} />
-                </View>
-                <TextInput
-                  value={strength}
-                  onChangeText={(t) => { setStrength(t); if (!t.trim()) setFrequency(''); }}
-                  placeholder="Enter strength (e.g. 500mg)"
-                  placeholderTextColor="#CBD5E1"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  className="flex-1 text-[14px] font-semibold text-[#0F172A]"
-                />
-                {strength.trim().length > 0 && <Ionicons name="checkmark-circle" size={18} color={TEAL} />}
-              </View>
-
-              <View className="mt-3 flex-row flex-wrap gap-2">
-                {STRENGTH_HINTS.map((hint) => (
-                  <Pressable
-                    key={hint}
-                    onPress={() => setStrength(hint)}
-                    className={`rounded-full border px-3 py-1 active:opacity-70
-                      ${strength === hint ? 'border-teal-500 bg-teal-600' : 'border-slate-200 bg-slate-50'}`}
-                  >
-                    <Text className={`text-[12px] font-bold ${strength === hint ? 'text-white' : 'text-slate-500'}`}>
-                      {hint}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </SectionCard>
-          </RevealRow>
-
-          {/* ── Step 4: Frequency ── */}
-          <RevealRow visible={showFrequency}>
-            <SectionCard
-              step={4} active={showFrequency && !frequency} done={!!frequency}
-              title="Dosage Frequency" subtitle="How often should it be taken?"
-            >
-              <Dropdown
-                placeholder="Select frequency"
-                value={frequency}
-                options={FREQUENCIES}
-                onSelect={setFrequency}
-              />
-            </SectionCard>
-          </RevealRow>
 
           {/* ── Order summary ── */}
           <RevealRow visible={allFilled}>
@@ -767,7 +658,6 @@ export default function OrderScreen() {
               <View className="flex-row flex-wrap gap-x-5 gap-y-1.5">
                 {([
                   ['Type', medType], ['Medicine', medName],
-                  ['Strength', strength], ['Frequency', frequency],
                 ] as const).map(([label, val]) => (
                   <View key={label} className="flex-row items-center gap-1.5">
                     <Text className="text-[11px] font-bold text-teal-500">{label}:</Text>
@@ -781,8 +671,8 @@ export default function OrderScreen() {
           {/* ── Place Order button ── */}
           <View className="mt-4">
             <PrimaryButton
-              label="Continue to Delivery →"
-              disabledLabel="Complete all steps to order"
+              label="Order Now"
+              disabledLabel="Order Medicine"
               icon="bag-check-outline"
               enabled={allFilled}
               onPress={() => setAddressModal('order')}

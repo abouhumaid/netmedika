@@ -9,6 +9,7 @@ class OrderStatus(str, enum.Enum):
     PENDING = "pending"
     VERIFIED = "verified"
     REJECTED = "rejected"
+    PROCESSING = "processing"
     PAID = "paid"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
@@ -23,8 +24,6 @@ class Order(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     dosage_form = Column(String, nullable=True)
     medication_name = Column(String, nullable=True)
-    strength = Column(String, nullable=True)
-    frequency = Column(String, nullable=True)
     prescription_image = Column(String, nullable=True) 
     status = Column(SQLEnum(OrderStatus), default=OrderStatus.PENDING, nullable=False)
     quantity = Column(Integer, default=1)

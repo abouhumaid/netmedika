@@ -54,7 +54,9 @@ export default function LoginScreen() {
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
       });
-      router.replace('/(tabs)');
+      // Redirect admins to admin dashboard, regular users to main tabs
+      const destination = response.user?.role === 'admin' ? '/admin' : '/(tabs)';
+      router.replace(destination as any);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to sign in right now. Try again.';

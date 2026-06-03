@@ -32,6 +32,8 @@ def test_create_order_with_valid_image(client, auth_headers):
     )
     assert response.status_code == 201
     body = response.json()
+    assert "strength" not in body
+    assert "frequency" not in body
     # If a file was saved, delete it to keep test environment clean
     prescription = body.get("prescription_image")
     if prescription:
@@ -102,6 +104,8 @@ def test_admin_can_fetch_order_detail(client, auth_headers, admin_headers):
     assert detail_response.status_code == 200
     assert detail_response.json()["order"]["order_id"] == order_id
     assert detail_response.json()["order"]["medication_name"] == "Ibuprofen"
+    assert "strength" not in detail_response.json()["order"]
+    assert "frequency" not in detail_response.json()["order"]
 
 
 def test_admin_can_delete_rejected_order(client, auth_headers, admin_headers):
@@ -131,3 +135,43 @@ def test_admin_can_delete_rejected_order(client, auth_headers, admin_headers):
 
     detail_response = client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
     assert detail_response.status_code == 404
+
+
+def test_admin_can_update_order_status(client, auth_headers, admin_headers):
+    # 1. Create order
+    create_response = client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Paracetamol",
+            "delivery_address": "8 Lekki Phase 1, Lagos",
+            "quantity": 5,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    # 2. Assert customer cannot update status directly
+    user_status_response = client.patch(
+        f"/api/v1/orders/{order_id}/status?status=delivered",
+        headers=auth_headers
+    )
+    assert user_status_response.status_code == 403
+
+    # 3. Assert admin can update to valid status
+    admin_status_response = client.patch(
+        f"/api/v1/orders/{order_id}/status?status=delivered",
+        headers=admin_headers
+    )
+    assert admin_status_response.status_code == 200
+    assert admin_status_response.json()["success"] is True
+    assert admin_status_response.json()["order"]["status"] == "delivered"
+
+    # 4. Assert admin update fails with invalid status
+    invalid_status_response = client.patch(
+        f"/api/v1/orders/{order_id}/status?status=invalid_status_value",
+        headers=admin_headers
+    )
+    assert invalid_status_response.status_code == 400
+    assert "Invalid status" in invalid_status_response.json()["detail"]
+

@@ -11,7 +11,7 @@ from models.order_model import Order, OrderStatus
 from database import get_db
 from typing import Annotated
 
-# ── Rate limiting (pip install slowapi) ──────────────────────────────────────
+
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -112,8 +112,6 @@ def _serialize_order(order: Order) -> dict:
         "user_name":          order.owner.username if order.owner else None,
         "user_email":         order.owner.email if order.owner else None,
         "dosage_form":        order.dosage_form,
-        "strength":           order.strength,
-        "frequency":          order.frequency,
         "medication_name":    order.medication_name,
         "prescription_image": order.prescription_image,
         "quantity":           order.quantity,
@@ -143,8 +141,6 @@ async def create_order(
     db: Annotated[Session, Depends(get_db)],
     dosage_form:       str | None  = Form(None),
     medicine_name:     str | None  = Form(None),
-    strength:          str | None  = Form(None),
-    frequency:         str | None  = Form(None),
     uploaded_image:    UploadFile | None = File(None),
     quantity:          int         = Form(1),
     delivery_address:  str | None  = Form(None),        # collected from modal
@@ -195,8 +191,6 @@ async def create_order(
             user_id=           current_user.id,
             dosage_form=       dosage_form,
             medication_name=   medicine_name,
-            strength=          strength,
-            frequency=         frequency,
             prescription_image=image_path,
             quantity=          quantity,
             delivery_address=  delivery_address.strip() if delivery_address else None,
@@ -215,8 +209,6 @@ async def create_order(
             user_id=           new_order.user_id,
             dosage_form=       new_order.dosage_form,
             medication_name=   new_order.medication_name,
-            strength=          new_order.strength,
-            frequency=         new_order.frequency,
             prescription_image=new_order.prescription_image,
             delivery_address=  new_order.delivery_address,
             status=            new_order.status,
@@ -601,4 +593,55 @@ async def confirm_payment_receipt(
     except Exception as exc:
         db.rollback()
         logger.error("Payment receipt confirmation failed for order %s: %s", order_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")
+
+
+@router.patch("/{order_id}/status", response_model=dict)
+async def update_order_status_admin(
+    order_id: str,
+    status: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Admin updates order status directly (e.g. PAID → DELIVERED → COMPLETED, or CANCELLED).
+    """
+    _require_admin(current_user)
+
+    try:
+        order = db.query(Order).filter(Order.order_id == order_id).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found.")
+
+        normalized_status = status.strip().lower()
+        try:
+            new_status = OrderStatus(normalized_status)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status '{status}'. Valid options are: {', '.join([s.value for s in OrderStatus])}",
+            ) from exc
+
+        old_status = order.status
+        order.status = new_status
+        order.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(order)
+
+        logger.info(
+            "Order status updated by admin %s for order %s — status: %s → %s",
+            current_user.id, order_id, old_status, new_status.value
+        )
+
+        return {
+            "success": True,
+            "message": f"Order status updated successfully to '{new_status.value}'.",
+            "order": _serialize_order(order),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to update status for order %s: %s", order_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again.")

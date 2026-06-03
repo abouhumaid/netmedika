@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -12,7 +13,7 @@ import { setPendingFlashToast } from '@/lib/flash-toast';
 
 const QUICK_ACTIONS = [
   {
-    label: 'Order Meds',
+    label: 'Orders',
     icon: 'medkit'        as const,
     route: '/orders',
     bg: '#0F766E',
@@ -35,9 +36,11 @@ const QUICK_ACTIONS = [
 ];
 
 export default function DashboardScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const [profile, setProfile]               = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading]           = useState(true);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarTone, setSnackbarTone] = useState<'success' | 'error'>('success');
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const cardAnim   = useRef(new Animated.Value(0)).current;
@@ -106,6 +109,18 @@ export default function DashboardScreen() {
     }).start();
   }
 
+  function handleQuickActionPress(route: string, label: string) {
+    if (label === 'Lab Test') {
+      setSnackbarTone('success');
+      setSnackbarMessage(
+        'Lab Test booking is coming soon'
+      );
+      return;
+    }
+
+    router.push(route as any);
+  }
+
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-[#F0FDF9] px-6">
@@ -138,7 +153,7 @@ export default function DashboardScreen() {
         contentContainerStyle={{ paddingBottom: 110 }}
       >
         {/* ── Top bar ── */}
-        <View className="flex-row items-center justify-between px-5 pt-4 pb-2">
+        <View className="flex-row items-center px-5 pt-4 pb-2">
           <View>
             <Text className="text-[12px] font-semibold uppercase tracking-[1.8px] text-teal-600">
               Netmedika
@@ -148,6 +163,7 @@ export default function DashboardScreen() {
           <Pressable
             onPress={() => router.push('/profile')}
             className="h-11 w-11 items-center justify-center rounded-full bg-teal-700 active:bg-teal-800"
+            style={{ marginLeft: 'auto' }}
           >
             <Text className="text-[15px] font-black text-white">
               {firstName.charAt(0).toUpperCase()}
@@ -160,7 +176,7 @@ export default function DashboardScreen() {
           {/* ── Hero card ── */}
           <Animated.View
             style={{ opacity: headerAnim, transform: [{ translateY: heroTranslateY }] }}
-            className="overflow-hidden rounded-[24px]"
+            className="rounded-t-[24px] overflow-hidden"
           >
             <View className="bg-[#0F766E] px-6 pt-7 pb-8">
               <Animated.View
@@ -197,37 +213,29 @@ export default function DashboardScreen() {
               Quick Actions
             </Text>
 
-            <View className="flex-row gap-3">
-              {QUICK_ACTIONS.map((action, i) => (
-                <Animated.View key={action.label} style={{ flex: 1, transform: [{ scale: scaleAnims[i] }] }}>
-                  <Pressable
-                    onPressIn={() => pressIn(i)}
-                    onPressOut={() => pressOut(i)}
-                    onPress={() => router.push(action.route as any)}
-                  >
-                    {/* Glow shadow layer */}
-                    <View
-                      style={{ backgroundColor: action.glow, shadowColor: action.glow }}
-                      className="absolute bottom-0 left-2 right-2 h-8 rounded-full opacity-30 blur-sm"
-                    />
-                    <View
-                      style={{ backgroundColor: action.bg }}
-                      className="items-center rounded-[20px] px-2 py-5 shadow-lg"
+            <View className="overflow-hidden rounded-[24px] border border-slate-200 bg-white px-2 py-3">
+              <View className="flex-row">
+                {QUICK_ACTIONS.map((action, i) => (
+                  <Animated.View key={action.label} style={{ flex: 1, transform: [{ scale: scaleAnims[i] }] }}>
+                    <Pressable
+                      onPressIn={() => pressIn(i)}
+                      onPressOut={() => pressOut(i)}
+                      onPress={() => handleQuickActionPress(action.route, action.label)}
+                      className={`items-center px-2 py-3 ${i < QUICK_ACTIONS.length - 1 ? 'border-r border-slate-100' : ''}`}
                     >
-                      {/* Icon container with inner glow ring */}
                       <View
-                        style={{ borderColor: `${action.glow}55` }}
-                        className="mb-3 h-12 w-12 items-center justify-center rounded-full border-2 bg-white/15"
+                        style={{ backgroundColor: action.bg, borderColor: `${action.glow}55` }}
+                        className="mb-2.5 h-12 w-12 items-center justify-center rounded-full border"
                       >
                         <Ionicons name={action.icon} size={24} color="#fff" />
                       </View>
-                      <Text className="text-center text-[11px] font-bold leading-[15px] text-white/90">
+                      <Text className="text-center text-[11px] font-semibold leading-[15px] text-slate-700">
                         {action.label}
                       </Text>
-                    </View>
-                  </Pressable>
-                </Animated.View>
-              ))}
+                    </Pressable>
+                  </Animated.View>
+                ))}
+              </View>
             </View>
 
 
@@ -298,8 +306,12 @@ export default function DashboardScreen() {
       <Snackbar
         visible={!!snackbarMessage}
         message={snackbarMessage}
-        tone="error"
-        onHide={() => setSnackbarMessage('')}
+        tone={snackbarTone}
+        bottomOffset={tabBarHeight}
+        onHide={() => {
+          setSnackbarMessage('');
+          setSnackbarTone('success');
+        }}
       />
     </SafeAreaView>
   );

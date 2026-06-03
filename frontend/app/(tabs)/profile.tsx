@@ -207,6 +207,35 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* ── Admin Portal Entry (Conditional) ── */}
+          {profile?.role === 'admin' && (
+            <Pressable
+              onPress={() => router.push('/admin' as any)}
+              style={{
+                backgroundColor: '#0F766E',
+                shadowColor: '#0F766E',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.25,
+                shadowRadius: 12,
+                elevation: 6,
+              }}
+              className="mb-4 flex-row items-center justify-between rounded-[18px] px-5 py-4 active:opacity-90 border border-teal-600/30"
+            >
+              <View className="flex-row items-center gap-3.5">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-teal-800">
+                  <Ionicons name="shield-checkmark" size={20} color="#2DD4BF" />
+                </View>
+                <View>
+                  <Text className="text-[15px] font-black text-white">Admin Dashboard</Text>
+                  <Text className="mt-0.5 text-[11px] text-teal-200">
+                    Manage system users and verify orders
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#2DD4BF" />
+            </Pressable>
+          )}
+
           {/* ── Settings ── */}
           <View className="mb-4 overflow-hidden rounded-[18px] border border-slate-100 bg-white shadow-sm">
             <View className="border-b border-slate-100 px-5 py-3.5">

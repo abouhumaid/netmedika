@@ -58,8 +58,6 @@ export type ApiOrder = {
   user_email?: string | null
   dosage_form?: string | null
   medication_name?: string | null
-  strength?: string | null
-  frequency?: string | null
   prescription_image?: string | null
   quantity: number
   delivery_address?: string | null

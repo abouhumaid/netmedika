@@ -42,7 +42,7 @@ export function getOrderType(order: ApiOrder) {
 }
 
 export function getOrderItems(order: ApiOrder) {
-  const details = [order.medication_name, order.dosage_form, order.strength, order.frequency].filter(Boolean)
+  const details = [order.medication_name, order.dosage_form].filter(Boolean)
   return details.length ? details.join(' • ') : 'Awaiting pharmacist review'
 }
 

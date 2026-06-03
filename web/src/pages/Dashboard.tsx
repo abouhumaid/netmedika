@@ -1,4 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts'
 import { showErrorAlert } from '../lib/alerts'
 import { authService } from '../services/authService'
 import { orderService } from '../services/orderService'
@@ -62,6 +71,20 @@ export default function Dashboard() {
 
   const recentOrders = orders.slice(0, 5)
 
+  // Orders over time: group by day
+  const ordersOverTime = useMemo(() => {
+    if (!orders.length) return []
+    const map: Record<string, number> = {}
+    orders.forEach((o) => {
+      const d = new Date(o.created_at)
+      const key = d.toISOString().slice(0, 10)
+      map[key] = (map[key] || 0) + 1
+    })
+    return Object.keys(map)
+      .sort()
+      .map((date) => ({ date, count: map[date] }))
+  }, [orders])
+
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -106,8 +129,23 @@ export default function Dashboard() {
         </article>
 
         <article className="rounded-[28px] border border-teal-100 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-black tracking-tight text-slate-900">Workflow summary</h2>
-          <div className="mt-5 space-y-4">
+          <h2 className="text-xl font-black tracking-tight text-slate-900">Orders over time</h2>
+          <div className="mt-5 h-48">
+            {ordersOverTime.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-sm text-slate-500">No data</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={ordersOverTime} margin={{ top: 8, right: 12, left: -8, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="count" stroke="#0F766E" strokeWidth={3} dot={{ r: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </article>
             {[
               { label: 'Pending', value: metrics.pending, tone: 'bg-amber-500' },
               { label: 'Accepted', value: metrics.accepted, tone: 'bg-emerald-500' },

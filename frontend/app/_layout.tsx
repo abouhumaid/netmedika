@@ -26,6 +26,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="admin" />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
