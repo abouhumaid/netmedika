@@ -10,23 +10,17 @@ import { fetchAdminOrders, fetchAdminUsers, type AdminOrder } from '@/lib/auth-a
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: 'Pending Review', color: '#D97706', bg: '#FEF3C7' },
   verified: { label: 'Awaiting Payment', color: '#0F766E', bg: '#CCFBF1' },
-  processing: { label: 'Paid Verification', color: '#6D28D9', bg: '#EDE9FE' },
   paid: { label: 'Paid & Confirmed', color: '#065F46', bg: '#D1FAE5' },
   delivered: { label: 'Delivered', color: '#1D4ED8', bg: '#DBEAFE' },
-  completed: { label: 'Completed', color: '#047857', bg: '#D1FAE5' },
-  cancelled: { label: 'Cancelled', color: '#475569', bg: '#E2E8F0' },
   rejected: { label: 'Rejected', color: '#991B1B', bg: '#FEE2E2' },
 };
 
 const TRACKED_STATUSES = [
   'pending',
   'verified',
-  'processing',
   'paid',
   'delivered',
-  'completed',
   'rejected',
-  'cancelled',
 ];
 
 function formatCurrency(amount: number) {
