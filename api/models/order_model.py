@@ -9,11 +9,11 @@ class OrderStatus(str, enum.Enum):
     PENDING = "pending"
     VERIFIED = "verified"
     REJECTED = "rejected"
-    # PROCESSING = "processing"
+    PROCESSING = "processing"
     PAID = "paid"
     DELIVERED = "delivered"
-    # CANCELLED = "cancelled"
-    # COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
 
 # Order Model
 class Order(Base):

@@ -175,3 +175,52 @@ def test_admin_can_update_order_status(client, auth_headers, admin_headers):
     assert invalid_status_response.status_code == 400
     assert "Invalid status" in invalid_status_response.json()["detail"]
 
+
+def test_order_payment_lifecycle_statuses(client, auth_headers, admin_headers):
+    create_response = client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Cetirizine",
+            "delivery_address": "14 Broad Street, Lagos Island, Lagos",
+            "quantity": 1,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    accept_response = client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "accept", "delivery_fee": 1200},
+        headers=admin_headers,
+    )
+    assert accept_response.status_code == 200
+    assert accept_response.json()["order"]["status"] == "verified"
+
+    payment_response = client.post(
+        f"/api/v1/orders/{order_id}/confirm-payment",
+        headers=auth_headers,
+    )
+    assert payment_response.status_code == 200
+    assert payment_response.json()["status"] == "processing"
+
+    receipt_response = client.post(
+        f"/api/v1/orders/{order_id}/confirm-payment-receipt",
+        headers=admin_headers,
+    )
+    assert receipt_response.status_code == 200
+    assert receipt_response.json()["order"]["status"] == "paid"
+
+    completed_response = client.patch(
+        f"/api/v1/orders/{order_id}/status?status=completed",
+        headers=admin_headers,
+    )
+    assert completed_response.status_code == 200
+    assert completed_response.json()["order"]["status"] == "completed"
+
+    cancelled_response = client.patch(
+        f"/api/v1/orders/{order_id}/status?status=cancelled",
+        headers=admin_headers,
+    )
+    assert cancelled_response.status_code == 200
+    assert cancelled_response.json()["order"]["status"] == "cancelled"
