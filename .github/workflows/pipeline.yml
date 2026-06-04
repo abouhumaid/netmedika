@@ -82,9 +82,14 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+      - name: Prepare remote deploy directory
+        run: |
+          ssh -o StrictHostKeyChecking=no "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            "mkdir -p .netmedika-deploy"
+
       - name: Copy deploy script to EC2
         run: |
-          scp -o StrictHostKeyChecking=no ../scripts/deploy_api.sh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/deploy_api.sh"
+          scp -o StrictHostKeyChecking=no ../scripts/deploy_api.sh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:.netmedika-deploy/deploy_api.sh"
 
       - name: Create deploy environment file
         env:
@@ -106,11 +111,11 @@ jobs:
 
       - name: Copy deploy environment file to EC2
         run: |
-          scp -o StrictHostKeyChecking=no /tmp/netmedika-deploy.env "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/netmedika-deploy.env"
+          scp -o StrictHostKeyChecking=no /tmp/netmedika-deploy.env "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:.netmedika-deploy/netmedika-deploy.env"
 
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
-            "chmod +x /tmp/deploy_api.sh && \
-            set -a && . /tmp/netmedika-deploy.env && set +a && \
-            /tmp/deploy_api.sh '${IMAGE_NAME}:${IMAGE_TAG}'"
+            "chmod +x .netmedika-deploy/deploy_api.sh && \
+            set -a && . .netmedika-deploy/netmedika-deploy.env && set +a && \
+            .netmedika-deploy/deploy_api.sh '${IMAGE_NAME}:${IMAGE_TAG}'"

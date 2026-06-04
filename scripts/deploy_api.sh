@@ -7,7 +7,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 IMAGE="$1"
-APP_DIR="/home/ubuntu/netmedika-api"
+APP_DIR="${APP_DIR:-${HOME}/netmedika-api}"
 ENV_FILE="${APP_DIR}/.env"
 CONTAINER_NAME="netmedika-api"
 
