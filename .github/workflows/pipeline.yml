@@ -82,6 +82,21 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+      - name: Free remote disk space
+        run: |
+          ssh -o StrictHostKeyChecking=no "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" <<'EOF'
+            set -e
+            echo "Disk before cleanup:"
+            df -h /
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+            sudo find /var/lib/docker/containers -name '*-json.log' -exec truncate -s 0 {} \; 2>/dev/null || true
+            sudo journalctl --vacuum-time=3d 2>/dev/null || true
+            echo "Disk after cleanup:"
+            df -h /
+          EOF
+
       - name: Prepare remote deploy directory
         run: |
           ssh -o StrictHostKeyChecking=no "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \

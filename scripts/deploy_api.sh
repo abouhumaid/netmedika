@@ -60,6 +60,8 @@ docker run -d \
 
 for _ in {1..12}; do
   if curl --fail --silent http://127.0.0.1/health >/dev/null; then
+    docker image prune -af >/dev/null 2>&1 || true
+    docker builder prune -af >/dev/null 2>&1 || true
     echo "Deployment succeeded"
     exit 0
   fi
