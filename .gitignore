@@ -1,8 +1,8 @@
 # Python
-venv/
+.venv/
 __pycache__/
 .env
-
+venv/
 # dependencies
 node_modules/
 
