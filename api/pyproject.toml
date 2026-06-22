@@ -30,29 +30,24 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
-    # Web framework & server
-    "fastapi>=0.135.1",
-    "uvicorn>=0.41.0",
-    "uvloop>=0.22.1; sys_platform != 'win32'",
+    # fastapi[standard] bundles: uvicorn, fastapi-cli, httpx,
+    # jinja2, python-multipart, email-validator, typer
+    "fastapi[standard]>=0.115.0",
+    "uvloop>=0.22.1; sys_platform != 'win32'",  # faster event loop (non-Windows)
 
     # Database
     "sqlalchemy>=2.0.48",
     "alembic>=1.18.4",
-    "psycopg>=3.3.3",               # psycopg3 — drop psycopg2-binary
+    "psycopg>=3.3.3",                           # psycopg3 (replaces psycopg2-binary)
 
     # Validation & settings
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
-    "email-validator>=2.3.0",
 
     # Auth & security
-    "python-jose>=3.5.0",           # JWT
-    "argon2-cffi>=25.1.0",          # password hashing (drop passlib & bcrypt if unused)
-    "cryptography>=46.0.5",         # covers RSA — drop standalone rsa
-
-    # HTTP & forms
-    "httpx>=0.28.1",
-    "python-multipart>=0.0.22",
+    "python-jose>=3.5.0",                       # JWT encode/decode
+    "argon2-cffi>=25.1.0",                      # password hashing
+    "cryptography>=46.0.5",                     # RSA + crypto primitives
 
     # Rate limiting
     "slowapi>=0.1.9",
@@ -63,12 +58,11 @@ dependencies = [
     # Monitoring (remove if Sentry not yet configured)
     "sentry-sdk>=2.54.0",
 
-    # Optional — keep only if used
-    # "jinja2>=3.1.6",              # HTML templates
-    # "websockets>=16.0",           # WebSocket endpoints
-    # "pydantic-extra-types>=2.11.0", # PhoneNumber, Color, etc.
-    # "pyyaml>=6.0.3",              # YAML config files
-    # "dnspython>=2.8.0",           # DNS email validation
+    # Optional — uncomment only if your app uses these
+    # "websockets>=16.0",                       # WebSocket endpoints
+    # "pydantic-extra-types>=2.11.0",           # PhoneNumber, Color, etc.
+    # "pyyaml>=6.0.3",                          # YAML config files
+    # "dnspython>=2.8.0",                       # DNS-based email validation
 ]
 
 [project.optional-dependencies]
@@ -81,7 +75,7 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "pre-commit>=4.0.0",
-    "watchfiles>=1.1.1",            # moved from core — dev-only (uvicorn --reload)
+    "watchfiles>=1.1.1",            # hot reload for uvicorn --reload
 ]
 test = [
     "pytest>=9.0.2",
@@ -92,8 +86,6 @@ test = [
 ]
 
 [project.scripts]
-# Points to a runnable entry point, not an ASGI app object
-medapp-api = "uvicorn:main"
 medapp-migrate = "alembic:main"
 
 [tool.setuptools.packages.find]
