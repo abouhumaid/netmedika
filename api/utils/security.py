@@ -3,6 +3,9 @@ from datetime import datetime, timedelta
 import os
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
+from dotenv import load_dotenv
+
+load_dotenv()
 
 pwd_context = CryptContext(
     schemes=["argon2"],
@@ -11,11 +14,14 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
-JWT_SECRET_KEY = os.getenv("SECRET_KEY", "test-secret-key")
-JWT_ALGORITHM = "HS256"
-
+JWT_SECRET_KEY = os.getenv("SECRET_KEY")
 if not JWT_SECRET_KEY:
-    raise RuntimeError("SECRET_KEY missing")
+    if os.getenv("ENV") == "production":
+        raise RuntimeError("SECRET_KEY environment variable is required in production environment.")
+    else:
+        JWT_SECRET_KEY = "dev-fallback-secret-key-change-in-production"
+
+JWT_ALGORITHM = "HS256"
 
 
 def hash_password(password: str):

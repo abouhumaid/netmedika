@@ -47,7 +47,7 @@ def test_login_and_refresh_flow(client):
     assert refresh_res.json().get("refresh_token") != old_refresh
 
 
-def test_register_honors_admin_role(client):
+def test_register_ignores_admin_role(client):
     register_res = client.post("/api/v1/auth/register", json={
         "username": "adminuser",
         "email": "admin@example.com",
@@ -61,7 +61,7 @@ def test_register_honors_admin_role(client):
         "password": "securepassword123",
     })
     assert login_res.status_code == 200
-    assert login_res.json()["user"]["role"] == "admin"
+    assert login_res.json()["user"]["role"] == "customer"
 
 
 def test_logout_invalidates_refresh(client):

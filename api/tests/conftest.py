@@ -10,7 +10,7 @@ from main import app
 
 # 2. CRITICAL: IMPORT ALL MODELS SO THEY REGISTER WITH BASE.METADATA
 # If these aren't imported, create_all() will create 0 tables.
-from models.auth_model import User
+from models.auth_model import User, UserRole
 from models.token_model import RefreshToken
 from models.order_model import Order
 
@@ -84,14 +84,20 @@ def auth_headers(client):
 
 
 @pytest.fixture
-def admin_headers(client):
+def admin_headers(client, db_session):
     admin_data = {
         "username": "adminqa",
         "email": "adminqa@example.com",
         "password": "Password123!",
-        "role": "admin",
     }
     client.post("/api/v1/auth/register", json=admin_data)
+    
+    # Securely elevate user to admin via DB session in test setup
+    user = db_session.query(User).filter(User.email == admin_data["email"]).first()
+    if user:
+        user.role = UserRole.ADMIN
+        db_session.commit()
+
     response = client.post("/api/v1/auth/login", json={
         "email": admin_data["email"],
         "password": admin_data["password"]
