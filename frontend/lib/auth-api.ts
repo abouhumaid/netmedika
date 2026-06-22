@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { getApiBaseUrl } from '@/lib/config';
 
 export type LoginRequest = {
   email: string;
@@ -39,20 +39,6 @@ type ApiErrorPayload = {
   detail?: string;
   message?: string;
 };
-
-function getApiBaseUrl() {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-
-  if (envUrl) {
-    return envUrl.replace(/\/$/, '');
-  }
-
-  if (Platform.OS === 'android') {
-    return 'http://100.53.230.81';
-  }
-
-  return 'http://100.53.230.81';
-}
 
 export async function loginUser(payload: LoginRequest): Promise<LoginResponse> {
   const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/login`, {

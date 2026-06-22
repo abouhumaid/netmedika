@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '@/components/header';
 import { fetchOrders, type Order as ApiOrder } from '@/lib/auth-api';
+import { getApiBaseUrl, getPaymentAccount } from '@/lib/config';
 import { getAccessToken } from '@/lib/auth-session';
 import { Snackbar } from '@/components/snackbar';
 
@@ -44,22 +45,9 @@ type OrderItem = {
   rejectionReason?: string;  // ← populated when status is Rejected
 };
 
-// ─── Payment account details ──────────────────────────────────────────────────
-// TODO: Replace with values from your backend config / env vars
-
-const PAYMENT_ACCOUNT = {
-  bankName:      'Test Bank Nigeria',
-  accountName:   'NetMedika Nigeria Ltd',
-  accountNumber: '3012345678',
-};
+const PAYMENT_ACCOUNT = getPaymentAccount();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getApiBaseUrl() {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (envUrl) return envUrl.replace(/\/$/, '');
-  return 'http://100.53.230.81';
-}
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -290,7 +278,7 @@ function PaymentModal({
             <Ionicons name="information-circle" size={20} color="#0F766E" />
             <Text className="flex-1 text-[12px] leading-5 text-teal-800 font-medium">
               Transfer the exact amount to the account below, then tap{' '}
-              <Text className="font-black">"I Have Paid"</Text> to notify us.
+              <Text className="font-black">I Have Paid</Text> to notify us.
             </Text>
           </View>
 

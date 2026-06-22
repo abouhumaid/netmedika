@@ -1,8 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import type { Href } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const CONFIRM_BOOKING_ROUTE = '/book-test/confirm' as Href;
 
 export default function BookTestScreen() {
   return (
@@ -14,7 +17,7 @@ export default function BookTestScreen() {
 
           <View className="mt-4 rounded-[20px] bg-white p-4 shadow-sm">
             <Text className="text-sm text-slate-500">This is a quick lab booking flow placeholder.</Text>
-            <Pressable onPress={() => router.push('/book-test/confirm')} className="mt-4 rounded-lg bg-[#0F172A] px-4 py-3 items-center">
+            <Pressable onPress={() => router.push(CONFIRM_BOOKING_ROUTE)} className="mt-4 rounded-lg bg-[#0F172A] px-4 py-3 items-center">
               <Text className="text-white font-bold">Continue</Text>
             </Pressable>
           </View>

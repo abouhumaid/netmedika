@@ -181,7 +181,7 @@ export default function AdminUsers({
               </View>
               <Text className="text-[16px] font-black text-[#0F172A]">No users found</Text>
               <Text className="mt-1 text-center text-[12px] text-slate-400 max-w-[240px]">
-                We couldn't find any user profiles matching "{search}".
+                We could not find any user profiles matching {search}.
               </Text>
             </View>
           }

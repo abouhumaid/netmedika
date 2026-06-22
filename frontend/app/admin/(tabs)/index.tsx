@@ -133,9 +133,7 @@ export default function AdminDashboard() {
         <Header title="Home" showBack={false} showAvatar avatarLabel="N" compact />
 
         <View className="px-4 py-6">
-          <View className="mb-5">
-            <Text className="text-[26px] font-black text-[#0F172A]">Dashboard</Text>
-          </View>
+          <View className="mb-5"></View>
 
           {error ? (
             <View className="mb-4 flex-row items-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">

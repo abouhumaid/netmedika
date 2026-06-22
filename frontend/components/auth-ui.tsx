@@ -8,6 +8,7 @@ import {
   TextInputProps,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 type BackArrowButtonProps = {
   onPress?: () => void;
@@ -22,9 +23,18 @@ type FloatingFieldProps = {
   keyboardType?: TextInputProps['keyboardType'];
   errorMessage?: string;
   autoCapitalize?: TextInputProps['autoCapitalize'];
+  compact?: boolean;
 };
 
 type AuthSubmitButtonProps = {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  compact?: boolean;
+};
+
+type SocialAuthButtonProps = {
+  provider: 'google' | 'apple';
   label: string;
   onPress: () => void;
   disabled?: boolean;
@@ -83,6 +93,7 @@ export function FloatingField({
   keyboardType = 'default',
   errorMessage,
   autoCapitalize = 'none',
+  compact,
 }: FloatingFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -102,21 +113,23 @@ export function FloatingField({
     () => ({
       top: animated.interpolate({
         inputRange: [0, 1],
-        outputRange: [18, 8],
+        outputRange: compact ? [15, 6] : [18, 8],
       }),
       fontSize: animated.interpolate({
         inputRange: [0, 1],
-        outputRange: [16, 12],
+        outputRange: compact ? [15, 11] : [16, 12],
       }),
       color: errorMessage ? '#DC2626' : active ? '#0F766E' : '#64748B',
     }),
-    [active, animated, errorMessage]
+    [active, animated, compact, errorMessage]
   );
 
   return (
     <View>
       <View
-        className={`relative min-h-[64px] justify-center rounded-[18px] border bg-[#FCFFFE] px-4 pt-[14px] ${
+        className={`relative justify-center rounded-[16px] border bg-[#FCFFFE] px-4 ${
+          compact ? 'min-h-[56px] pt-[10px]' : 'min-h-[64px] pt-[14px]'
+        } ${
           errorMessage
             ? 'border-red-400'
             : active
@@ -132,7 +145,7 @@ export function FloatingField({
             setIsFocused(false);
             onBlur?.();
           }}
-          className={`pb-1.5 pt-2 text-base text-slateink ${secureTextEntry ? 'pr-16' : ''}`}
+          className={`${compact ? 'pb-1 pt-2 text-[15px]' : 'pb-1.5 pt-2 text-base'} text-slateink ${secureTextEntry ? 'pr-16' : ''}`}
           selectionColor="#0F766E"
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -141,7 +154,7 @@ export function FloatingField({
         {secureTextEntry ? (
           <Pressable
             className="absolute right-4 z-10"
-            style={{ top: 22 }}
+            style={{ top: compact ? 18 : 22 }}
             hitSlop={10}
             onPress={() => setIsPasswordVisible((current) => !current)}>
             <Text className="text-sm font-bold text-pharmacy-600">
@@ -151,22 +164,73 @@ export function FloatingField({
         ) : null}
       </View>
       {errorMessage ? (
-        <Text className="mt-1.5 px-1 text-sm leading-5 text-red-500">{errorMessage}</Text>
+        <Text className={`${compact ? 'mt-1 px-1 text-[12px] leading-4' : 'mt-1.5 px-1 text-sm leading-5'} text-red-500`}>{errorMessage}</Text>
       ) : null}
     </View>
   );
 }
 
-export function AuthSubmitButton({ label, onPress, disabled }: AuthSubmitButtonProps) {
+export function AuthSubmitButton({ label, onPress, disabled, compact }: AuthSubmitButtonProps) {
   return (
     <Pressable
-      className={`items-center rounded-[18px] py-3.5 ${disabled ? 'bg-[#94D3CC]' : 'bg-pharmacy-600 active:bg-pharmacy-700'}`}
+      className={`items-center rounded-[16px] ${compact ? 'py-3' : 'py-3.5'} ${disabled ? 'bg-[#94D3CC]' : 'bg-pharmacy-600 active:bg-pharmacy-700'}`}
       onPress={onPress}
       disabled={disabled}>
-      <Text className={`text-base font-bold ${disabled ? 'text-white/90' : 'text-white'}`}>
+      <Text className={`${compact ? 'text-[15px]' : 'text-base'} font-bold ${disabled ? 'text-white/90' : 'text-white'}`}>
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+export function AuthDivider() {
+  return (
+    <View className="flex-row items-center gap-3">
+      <View className="h-px flex-1 bg-slate-200" />
+      <Text className="text-[11px] font-bold uppercase tracking-[1.5px] text-slate-400">
+        or continue with
+      </Text>
+      <View className="h-px flex-1 bg-slate-200" />
+    </View>
+  );
+}
+
+export function SocialAuthButton({ provider, label, onPress, disabled }: SocialAuthButtonProps) {
+  const isApple = provider === 'apple';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      className={`h-11 flex-1 flex-row items-center justify-center gap-2 rounded-[14px] border border-slate-200 bg-white active:bg-slate-50 ${
+        disabled ? 'opacity-60' : ''
+      }`}>
+      {isApple ? (
+        <>
+          <Ionicons name="logo-apple" size={18} color="#0F172A" />
+          <Text className="text-[13px] font-bold text-slate-700">{label}</Text>
+        </>
+      ) : (
+        <GoogleWordmark label={label} />
+      )}
+    </Pressable>
+  );
+}
+
+function GoogleWordmark({ label }: { label: string }) {
+  if (label !== 'Google') {
+    return <Text className="text-[13px] font-bold text-slate-700">{label}</Text>;
+  }
+
+  return (
+    <View className="flex-row items-center">
+      <Text className="text-[14px] font-black text-[#4285F4]">G</Text>
+      <Text className="text-[14px] font-black text-[#EA4335]">o</Text>
+      <Text className="text-[14px] font-black text-[#FBBC05]">o</Text>
+      <Text className="text-[14px] font-black text-[#4285F4]">g</Text>
+      <Text className="text-[14px] font-black text-[#34A853]">l</Text>
+      <Text className="text-[14px] font-black text-[#EA4335]">e</Text>
+    </View>
   );
 }
 

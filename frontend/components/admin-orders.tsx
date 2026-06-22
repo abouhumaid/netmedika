@@ -23,6 +23,7 @@ import {
   updateOrderStatus,
   type AdminOrder,
 } from '@/lib/auth-api';
+import { getApiAssetUrl } from '@/lib/config';
 
 const TEAL = '#0F766E';
 
@@ -57,12 +58,6 @@ const LIFECYCLE_STATUS_OPTIONS = [
 ] as const;
 
 type LifecycleStatus = (typeof LIFECYCLE_STATUS_OPTIONS)[number]['status'];
-
-function getApiBaseUrl() {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (envUrl) return envUrl.replace(/\/$/, '');
-  return 'http://100.53.230.81';
-}
 
 function formatDateTime(isoString: string) {
   try {
@@ -522,7 +517,7 @@ export default function AdminOrders({
                       </Text>
                       <View className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
                         <Image
-                          source={{ uri: `${getApiBaseUrl()}/${selectedOrder.prescription_image}` }}
+                          source={{ uri: getApiAssetUrl(selectedOrder.prescription_image) }}
                           style={{ width: '100%', height: 280 }}
                           resizeMode="contain"
                         />
@@ -532,9 +527,9 @@ export default function AdminOrders({
                           </Text>
                           <Pressable
                             onPress={() => {
-                              // Standard browser link opening logic
-                              if (Platform.OS === 'web') {
-                                window.open(`${getApiBaseUrl()}/${selectedOrder.prescription_image}`, '_blank');
+                              const prescriptionImage = selectedOrder.prescription_image;
+                              if (Platform.OS === 'web' && prescriptionImage) {
+                                window.open(getApiAssetUrl(prescriptionImage), '_blank');
                               }
                             }}
                             className="flex-row items-center gap-1 rounded-md bg-teal-600 px-3 py-1 active:bg-teal-700"

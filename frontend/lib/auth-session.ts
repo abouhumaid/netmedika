@@ -6,7 +6,8 @@ const REFRESH_TOKEN_KEY = 'netmedika_refresh_token';
 
 async function setStorageItem(key: string, value: string) {
   if (Platform.OS === 'web') {
-    globalThis.localStorage?.setItem(key, value);
+    globalThis.sessionStorage?.setItem(key, value);
+    globalThis.localStorage?.removeItem(key);
     return;
   }
 
@@ -15,7 +16,18 @@ async function setStorageItem(key: string, value: string) {
 
 async function getStorageItem(key: string) {
   if (Platform.OS === 'web') {
-    return globalThis.localStorage?.getItem(key) ?? null;
+    const sessionValue = globalThis.sessionStorage?.getItem(key);
+    if (sessionValue) {
+      return sessionValue;
+    }
+
+    const legacyValue = globalThis.localStorage?.getItem(key);
+    if (legacyValue) {
+      globalThis.sessionStorage?.setItem(key, legacyValue);
+      globalThis.localStorage?.removeItem(key);
+    }
+
+    return legacyValue ?? null;
   }
 
   return SecureStore.getItemAsync(key);
@@ -23,6 +35,7 @@ async function getStorageItem(key: string) {
 
 async function deleteStorageItem(key: string) {
   if (Platform.OS === 'web') {
+    globalThis.sessionStorage?.removeItem(key);
     globalThis.localStorage?.removeItem(key);
     return;
   }

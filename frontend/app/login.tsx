@@ -7,11 +7,19 @@ import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
-import { AuthSubmitButton, BackArrowButton, FloatingField } from '@/components/auth-ui';
+import {
+  AuthDivider,
+  AuthSubmitButton,
+  BackArrowButton,
+  FloatingField,
+  SocialAuthButton,
+} from '@/components/auth-ui';
 import { Snackbar } from '@/components/snackbar';
 import { loginUser } from '@/lib/auth-api';
 import { saveAuthSession } from '@/lib/auth-session';
 import { consumePendingFlashToast } from '@/lib/flash-toast';
+import { startSocialAuth } from '@/lib/social-auth';
+import type { SocialAuthProvider } from '@/lib/config';
 
 const loginSchema = z.object({
   email: z.string().trim().email('Enter a valid email address.'),
@@ -23,6 +31,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginScreen() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarTone, setSnackbarTone] = useState<'success' | 'error'>('success');
+  const [socialProvider, setSocialProvider] = useState<SocialAuthProvider | null>(null);
 
   const {
     control,
@@ -65,13 +74,34 @@ export default function LoginScreen() {
     }
   });
 
+  const handleSocialAuth = async (provider: SocialAuthProvider) => {
+    setSocialProvider(provider);
+    try {
+      const response = await startSocialAuth(provider);
+      await saveAuthSession({
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+      });
+      router.replace(response.role === 'admin' ? '/admin' : '/(tabs)');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to complete social sign-in right now.';
+      setSnackbarMessage(message);
+      setSnackbarTone('error');
+    } finally {
+      setSocialProvider(null);
+    }
+  };
+
+  const isBusy = isSubmitting || !!socialProvider;
+
   return (
     <SafeAreaView className="flex-1 bg-[#F4FFFC]">
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View className="mx-auto flex-1 w-full max-w-[560px] px-4 pb-7 pt-2.5 sm:px-5">
+        <View className="mx-auto flex-1 w-full max-w-[560px] px-4 pb-5 pt-2.5 sm:px-5">
           <View className="flex-row items-center justify-between">
             <BackArrowButton />
             <Text className="overflow-hidden rounded-full bg-pharmacy-100 px-3 py-2 text-[12px] font-bold uppercase tracking-[0.4px] text-pharmacy-600">
@@ -79,17 +109,34 @@ export default function LoginScreen() {
             </Text>
           </View>
 
-          <View className="mt-8 items-center gap-2">
-            <Text className="text-[15px] font-semibold uppercase tracking-[3px] text-pharmacy-600">
+          <View className="mt-5 items-center gap-1.5">
+            <Text className="text-[13px] font-semibold uppercase tracking-[2.5px] text-pharmacy-600">
               Sign in
             </Text>
-            <Text className="text-center text-[36px] font-black tracking-[2px] text-slateink sm:text-[42px]">
+            <Text className="text-center text-[32px] font-black tracking-[1.5px] text-slateink sm:text-[38px]">
               <Text className="text-pharmacy-600">Net</Text>
               <Text className="text-emerald-500">medika</Text>
             </Text>
           </View>
 
-          <View className="mt-6 gap-4 rounded-[28px] bg-white p-5 shadow-sm shadow-slate-950/10 sm:p-6">
+          <View className="mt-4 gap-3 rounded-[24px] bg-white p-4 shadow-sm shadow-slate-950/10 sm:p-5">
+            <View className="flex-row gap-3">
+              <SocialAuthButton
+                provider="google"
+                label={socialProvider === 'google' ? 'Opening...' : 'Google'}
+                onPress={() => handleSocialAuth('google')}
+                disabled={isBusy}
+              />
+              <SocialAuthButton
+                provider="apple"
+                label={socialProvider === 'apple' ? 'Opening...' : 'Apple'}
+                onPress={() => handleSocialAuth('apple')}
+                disabled={isBusy}
+              />
+            </View>
+
+            <AuthDivider />
+
             <Controller
               control={control}
               name="email"
@@ -101,6 +148,7 @@ export default function LoginScreen() {
                   onBlur={onBlur}
                   keyboardType="email-address"
                   errorMessage={errors.email?.message}
+                  compact
                 />
               )}
             />
@@ -116,22 +164,24 @@ export default function LoginScreen() {
                   onBlur={onBlur}
                   secureTextEntry
                   errorMessage={errors.password?.message}
+                  compact
                 />
               )}
             />
 
             <Pressable className="self-end">
-              <Text className="text-sm font-semibold text-pharmacy-600">Forgot password?</Text>
+              <Text className="text-[13px] font-semibold text-pharmacy-600">Forgot password?</Text>
             </Pressable>
 
             <AuthSubmitButton
               label={isSubmitting ? 'Logging In...' : 'Log In'}
               onPress={onSubmit}
-              disabled={isSubmitting}
+              disabled={isBusy}
+              compact
             />
           </View>
 
-          <Text className="mt-5 text-center leading-[21px] text-slate-500">
+          <Text className="mt-4 text-center leading-[20px] text-slate-500">
             New account?{' '}
             <Text className="font-bold text-pharmacy-600" onPress={() => router.push('/register')}>
               Register here
