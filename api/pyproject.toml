@@ -47,6 +47,7 @@ dependencies = [
     "python-jose>=3.5.0",                       # JWT encode/decode
     "argon2-cffi>=25.1.0",                      # password hashing
     "cryptography>=46.0.5",                     # RSA + crypto primitives
+    "passlib>=1.7.4",                           # password hashing context
 
     # Rate limiting
     "slowapi>=0.1.9",

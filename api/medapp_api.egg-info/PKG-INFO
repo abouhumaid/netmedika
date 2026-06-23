@@ -28,6 +28,7 @@ Requires-Dist: pydantic-settings>=2.13.1
 Requires-Dist: python-jose>=3.5.0
 Requires-Dist: argon2-cffi>=25.1.0
 Requires-Dist: cryptography>=46.0.5
+Requires-Dist: passlib>=1.7.4
 Requires-Dist: slowapi>=0.1.9
 Requires-Dist: python-dotenv>=1.2.2
 Requires-Dist: sentry-sdk>=2.54.0
