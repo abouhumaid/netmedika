@@ -89,11 +89,11 @@ test = [
 medapp-migrate = "alembic:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["controllers*", "database*", "models*", "routers*", "schemas*", "service*", "utils*"]
+where = ["api"]
+exclude = ["tests*", "alembic*", ".venv*"]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["api"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
