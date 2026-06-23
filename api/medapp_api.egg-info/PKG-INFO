@@ -1,0 +1,53 @@
+Metadata-Version: 2.4
+Name: medapp-api
+Version: 1.0.0
+Summary: NetMedika API - Online Medicine Order App
+Author-email: NetMedika Team <team@netmedika.com>
+Maintainer-email: NetMedika Team <team@netmedika.com>
+License-Expression: MIT
+Keywords: fastapi,healthcare,api,medical,postgresql
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Healthcare Industry
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Framework :: FastAPI
+Classifier: Topic :: Internet :: WWW/HTTP :: HTTP Servers
+Classifier: Topic :: Software Development :: Libraries :: Application Frameworks
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi[standard]>=0.115.0
+Requires-Dist: uvloop>=0.22.1; sys_platform != "win32"
+Requires-Dist: sqlalchemy>=2.0.48
+Requires-Dist: alembic>=1.18.4
+Requires-Dist: psycopg>=3.3.3
+Requires-Dist: pydantic>=2.12.5
+Requires-Dist: pydantic-settings>=2.13.1
+Requires-Dist: python-jose>=3.5.0
+Requires-Dist: argon2-cffi>=25.1.0
+Requires-Dist: cryptography>=46.0.5
+Requires-Dist: slowapi>=0.1.9
+Requires-Dist: python-dotenv>=1.2.2
+Requires-Dist: sentry-sdk>=2.54.0
+Provides-Extra: dev
+Requires-Dist: pytest>=9.0.2; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.25.0; extra == "dev"
+Requires-Dist: pytest-cov>=6.0.0; extra == "dev"
+Requires-Dist: httpx>=0.28.1; extra == "dev"
+Requires-Dist: anyio>=4.0.0; extra == "dev"
+Requires-Dist: ruff>=0.8.0; extra == "dev"
+Requires-Dist: mypy>=1.13.0; extra == "dev"
+Requires-Dist: pre-commit>=4.0.0; extra == "dev"
+Requires-Dist: watchfiles>=1.1.1; extra == "dev"
+Provides-Extra: test
+Requires-Dist: pytest>=9.0.2; extra == "test"
+Requires-Dist: pytest-asyncio>=0.25.0; extra == "test"
+Requires-Dist: pytest-cov>=6.0.0; extra == "test"
+Requires-Dist: httpx>=0.28.1; extra == "test"
+Requires-Dist: anyio>=4.0.0; extra == "test"
+
+# NetMedika API
+
+FastAPI backend for NetMedika - Online Medicine Order App.
