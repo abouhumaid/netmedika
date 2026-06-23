@@ -1,4 +1,7 @@
+build
 controllers
+database
+main
 models
 schemas
 service

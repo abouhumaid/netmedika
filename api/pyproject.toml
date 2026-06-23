@@ -87,6 +87,9 @@ test = [
 [project.scripts]
 medapp-migrate = "alembic:main"
 
+[tool.setuptools]
+py-modules = ["database", "main"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["tests*", "alembic*", ".venv*"]
