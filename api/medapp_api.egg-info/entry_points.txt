@@ -1,2 +1,0 @@
-[console_scripts]
-medapp-migrate = alembic:main
