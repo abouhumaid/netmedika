@@ -1,9 +1,7 @@
-"""Authentication endpoints."""
-
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_admin
 from app.core.database import get_db
@@ -33,14 +31,14 @@ def _user_summary(user: User) -> dict:
 
 
 @router.post("/register", status_code=201)
-def register(request: RegisterRequest, db: Session = Depends(get_db)) -> dict:
-    _user_service.register(db, request)
+async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    await _user_service.register(db, request)
     return {"message": "Account created"}
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
-    res = _user_service.login(db, request)
+async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+    res = await _user_service.login(db, request)
     return AuthResponse(
         message="Login successful",
         user=UserResponse.model_validate(res["user"], from_attributes=True),
@@ -50,22 +48,22 @@ def login(request: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
 
 
 @router.get("/users", response_model=dict)
-def list_users(
-    db: Session = Depends(get_db),
+async def list_users(
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> dict:
-    users = _user_service.list_all(db)
+    users = await _user_service.list_all(db)
     return {"users": [_user_summary(u) for u in users]}
 
 
 @router.patch("/users/{user_id}/role", response_model=dict)
-def update_user_role(
+async def update_user_role(
     user_id: int,
     request: UpdateUserRoleRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ) -> dict:
-    user = _user_service.update_role(db, user_id, request.role, current_user)
+    user = await _user_service.update_role(db, user_id, request.role, current_user)
     return {
         "message": "User role updated successfully.",
         "user": _user_summary(user),
@@ -73,8 +71,8 @@ def update_user_role(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(request: RefreshTokenRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    res = _user_service.refresh_session(db, request.refresh_token)
+async def refresh(request: RefreshTokenRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    res = await _user_service.refresh_session(db, request.refresh_token)
     return TokenResponse(
         access_token=res["access_token"],
         refresh_token=res["refresh_token"],
@@ -83,9 +81,9 @@ def refresh(request: RefreshTokenRequest, db: Session = Depends(get_db)) -> Toke
 
 
 @router.post("/logout")
-def logout(
+async def logout(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
-    _user_service.logout(db, current_user)
+    await _user_service.logout(db, current_user)
     return {"message": "User logged out"}

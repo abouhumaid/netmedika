@@ -1,5 +1,3 @@
-"""Order endpoints."""
-
 from __future__ import annotations
 
 import logging
@@ -17,7 +15,7 @@ from fastapi import (
 )
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_admin, require_authenticated
 from app.core.database import get_db
@@ -39,7 +37,7 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 @limiter.limit("10/minute")
 async def create_order(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     dosage_form: str | None = Form(None),
     medicine_name: str | None = Form(None),
     uploaded_image: UploadFile | None = File(None),
@@ -74,10 +72,10 @@ async def create_order(
 async def get_my_orders(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=50),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_authenticated),
 ) -> dict:
-    orders, total = _order_service.list_for_user(db, current_user.id, skip=skip, limit=limit)
+    orders, total = await _order_service.list_for_user(db, current_user.id, skip=skip, limit=limit)
     return {
         "user_id": current_user.id,
         "total_orders": total,
@@ -89,10 +87,10 @@ async def get_my_orders(
 async def update_order_quantity(
     order_id: str,
     quantity: int = Query(..., ge=1, le=99),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_authenticated),
 ) -> dict:
-    old_qty, new_qty = _order_service.update_quantity(db, order_id, quantity, current_user.id)
+    old_qty, new_qty = await _order_service.update_quantity(db, order_id, quantity, current_user.id)
     return {
         "success": True,
         "message": "Quantity updated successfully.",
@@ -105,10 +103,10 @@ async def update_order_quantity(
 @router.delete("/delete/{order_id}", response_model=dict)
 async def delete_order(
     order_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_authenticated),
 ) -> dict:
-    deleted_id, deleted_name = _order_service.delete_order(db, order_id, current_user)
+    deleted_id, deleted_name = await _order_service.delete_order(db, order_id, current_user)
     return {
         "success": True,
         "message": "Order deleted successfully.",
@@ -120,7 +118,7 @@ async def delete_order(
 @router.post("/delete/{order_id}", response_model=dict)
 async def delete_order_via_post(
     order_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_authenticated),
 ) -> dict:
     """Backward-compatible POST alias for :func:`delete_order`."""
@@ -132,13 +130,13 @@ async def get_user_orders(
     user_id: int,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=50),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_authenticated),
 ) -> dict:
     if current_user.id != user_id and not getattr(current_user, "is_admin", False):
         raise HTTPException(status_code=403, detail="Not authorized to view these orders.")
 
-    orders, total = _order_service.list_for_user(db, user_id, skip=skip, limit=limit)
+    orders, total = await _order_service.list_for_user(db, user_id, skip=skip, limit=limit)
     return {
         "user_id": user_id,
         "total_orders": total,
@@ -152,10 +150,10 @@ async def get_all_orders(
     search: str | None = Query(default=None, min_length=1),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> dict:
-    orders, total = _order_service.list_all_admin(
+    orders, total = await _order_service.list_all_admin(
         db,
         status=status_filter,
         search=search,
@@ -171,10 +169,10 @@ async def get_all_orders(
 @router.get("/{order_id}", response_model=dict)
 async def get_order(
     order_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_authenticated),
 ) -> dict:
-    order = _order_service.get_by_order_id(
+    order = await _order_service.get_by_order_id(
         db,
         order_id,
         requesting_user=current_user,
@@ -187,10 +185,10 @@ async def get_order(
 async def review_order(
     order_id: str,
     payload: ReviewOrderRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> dict:
-    order = _order_service.review_status(db, order_id, payload)
+    order = await _order_service.review_status(db, order_id, payload)
     action = "accepted" if payload.decision == ReviewDecision.ACCEPT else "rejected"
     return {
         "success": True,
@@ -202,10 +200,10 @@ async def review_order(
 @router.post("/{order_id}/confirm-payment", response_model=dict)
 async def confirm_payment(
     order_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_authenticated),
 ) -> dict:
-    order = _order_service.confirm_payment_by_user(db, order_id, current_user.id)
+    order = await _order_service.confirm_payment_by_user(db, order_id, current_user.id)
     logger.info(
         "Payment confirmed by user %s for order %s — status → PROCESSING",
         current_user.id, order_id,
@@ -221,10 +219,10 @@ async def confirm_payment(
 @router.post("/{order_id}/confirm-payment-receipt", response_model=dict)
 async def confirm_payment_receipt(
     order_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> dict:
-    order = _order_service.confirm_payment_receipt_by_admin(db, order_id)
+    order = await _order_service.confirm_payment_receipt_by_admin(db, order_id)
     logger.info(
         "Payment receipt confirmed by admin for order %s — status → PAID",
         order_id,
@@ -240,10 +238,10 @@ async def confirm_payment_receipt(
 async def update_order_status_admin(
     order_id: str,
     status: str = Query(...),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> dict:
-    old_status, order = _order_service.update_status_by_admin(db, order_id, status)
+    old_status, order = await _order_service.update_status_by_admin(db, order_id, status)
     logger.info(
         "Order status updated by admin for order %s — status: %s → %s",
         order_id, old_status, order.status.value,

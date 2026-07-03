@@ -1,5 +1,3 @@
-"""Centralized application settings loaded from environment variables."""
-
 from __future__ import annotations
 
 import os
@@ -11,7 +9,6 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
-    """Immutable application settings sourced from the environment."""
 
     # Database
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./test.db")

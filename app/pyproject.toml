@@ -37,7 +37,9 @@ dependencies = [
     # Database
     "sqlalchemy>=2.0.48",
     "alembic>=1.18.4",
-    "psycopg>=3.3.3",                           # psycopg3 (replaces psycopg2-binary)
+    "psycopg>=3.3.3",                           # psycopg3 (sync driver for alembic)
+    "asyncpg>=0.29.0",                          # async Postgres driver
+    "aiosqlite>=0.20.0",                        # async SQLite driver
 
     # Validation & settings
     "pydantic>=2.12.5",

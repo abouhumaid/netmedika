@@ -1,5 +1,3 @@
-"""Shared HTTP exception helpers used across routes and services."""
-
 from __future__ import annotations
 
 from fastapi import HTTPException, status

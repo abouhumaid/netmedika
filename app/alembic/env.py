@@ -3,9 +3,6 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
 
 # Ensure ``app.*`` is importable regardless of how alembic is invoked.
@@ -14,7 +11,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 # Import the database Base and load environment variables
-from app.core.database import Base
+from app.core.database import Base, sync_engine
 from dotenv import load_dotenv
 
 # Import all models for Alembic to detect them
@@ -57,14 +54,8 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
-    with connectable.connect() as connection:
+    """Run migrations in 'online' mode using sync engine."""
+    with sync_engine.connect() as connection:
         context.configure(
             connection=connection, target_metadata=target_metadata
         )

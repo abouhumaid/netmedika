@@ -9,9 +9,10 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # 1. IMPORT YOUR BASE AND DB UTILS
 from app.core.database import Base, get_db
@@ -21,52 +22,47 @@ from app.main import app
 # If these aren't imported, create_all() will create 0 tables.
 from app.model import Order, RefreshToken, User, UserRole  # noqa: F401
 
-# Use a specific test database file
-TEST_DATABASE_URL = "sqlite:///./test_database.db"
+# Use async SQLite for tests
+TEST_DATABASE_URL = "sqlite+aiosqlite:///./test_database.db"
 
 
-@pytest.fixture(scope="session")
-def db_engine():
-    """Creates the engine and the tables once for the entire test session."""
-    engine = create_engine(
+@pytest_asyncio.fixture(scope="session")
+async def db_engine():
+    """Creates the async engine and the tables once for the entire test session."""
+    engine = create_async_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
     )
 
     # Create all tables registered with Base
-    Base.metadata.create_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
     yield engine
 
     # Cleanup after all tests are done
-    Base.metadata.drop_all(bind=engine)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
     if os.path.exists("./test_database.db"):
         os.remove("./test_database.db")
 
 
-@pytest.fixture(scope="function")
-def db_session(db_engine):
-    """Provides a clean session for every single test function."""
-    connection = db_engine.connect()
-    transaction = connection.begin()
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
-    transaction.rollback()
-    connection.close()
+@pytest_asyncio.fixture(scope="function")
+async def db_session(db_engine):
+    """Provides a clean async session for every single test function."""
+    async_session_maker = async_sessionmaker(
+        db_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with async_session_maker() as session:
+        yield session
 
 
-@pytest.fixture(scope="function")
-def client(db_session):
+@pytest_asyncio.fixture(scope="function")
+async def client(db_session):
     """Overrides the get_db dependency in the FastAPI app."""
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
+    async def override_get_db():
+        yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
@@ -92,8 +88,8 @@ def auth_headers(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest.fixture
-def admin_headers(client, db_session):
+@pytest_asyncio.fixture
+async def admin_headers(client, db_session):
     admin_data = {
         "username": "adminqa",
         "email": "adminqa@example.com",
@@ -101,10 +97,13 @@ def admin_headers(client, db_session):
     }
     client.post("/api/v1/auth/register", json=admin_data)
 
-    user = db_session.query(User).filter(User.email == admin_data["email"]).first()
+    result = await db_session.execute(
+        select(User).where(User.email == admin_data["email"])
+    )
+    user = result.scalar_one_or_none()
     if user:
         user.role = UserRole.ADMIN
-        db_session.commit()
+        await db_session.commit()
 
     response = client.post("/api/v1/auth/login", json={
         "email": admin_data["email"],

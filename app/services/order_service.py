@@ -1,4 +1,4 @@
-"""Order business logic."""
+"""Order business logic (async)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, UploadFile
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.model.order import Order, OrderStatus
 from app.model.user import User
@@ -29,7 +31,7 @@ class OrderService(BaseService[Order]):
 
     async def create_order(
         self,
-        db: Session,
+        db: AsyncSession,
         current_user: User,
         *,
         dosage_form: str | None,
@@ -66,11 +68,11 @@ class OrderService(BaseService[Order]):
                 total_amount=0.0,
                 status=OrderStatus.PENDING,
             )
-            return self.save(db, new_order)
+            return await self.save(db, new_order)
         except HTTPException:
             raise
         except Exception as exc:
-            db.rollback()
+            await db.rollback()
             logger.error(
                 "Order creation failed for user %s: %s",
                 current_user.id, exc, exc_info=True,
@@ -79,34 +81,38 @@ class OrderService(BaseService[Order]):
 
     # ----- reads ----------------------------------------------------------
 
-    def list_for_user(
-        self, db: Session, user_id: int, *, skip: int = 0, limit: int = 20,
+    async def list_for_user(
+        self, db: AsyncSession, user_id: int, *, skip: int = 0, limit: int = 20,
     ) -> tuple[list[Order], int]:
-        orders = (
-            db.query(Order)
-            .filter(Order.user_id == user_id)
+        result = await db.execute(
+            select(Order)
+            .where(Order.user_id == user_id)
             .order_by(Order.created_at.desc())
             .offset(skip)
             .limit(limit)
-            .all()
         )
-        total = db.query(Order).filter(Order.user_id == user_id).count()
+        orders = result.scalars().all()
+
+        total_result = await db.execute(
+            select(func.count()).select_from(Order).where(Order.user_id == user_id)
+        )
+        total = total_result.scalar_one()
         return orders, total
 
-    def list_all_admin(
+    async def list_all_admin(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
         status: str | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[Order], int]:
-        query = db.query(Order).join(User, Order.user_id == User.id)
+        query = select(Order).options(selectinload(Order.owner)).join(User, Order.user_id == User.id)
 
         if status:
             try:
-                query = query.filter(Order.status == OrderStatus(status.strip().lower()))
+                query = query.where(Order.status == OrderStatus(status.strip().lower()))
             except ValueError as exc:
                 raise HTTPException(
                     status_code=400, detail="Invalid order status filter.",
@@ -114,7 +120,7 @@ class OrderService(BaseService[Order]):
 
         if search:
             term = f"%{search.strip()}%"
-            query = query.filter(
+            query = query.where(
                 (Order.order_id.ilike(term))
                 | (Order.medication_name.ilike(term))
                 | (Order.delivery_address.ilike(term))
@@ -122,24 +128,29 @@ class OrderService(BaseService[Order]):
                 | (User.email.ilike(term))
             )
 
-        total = query.count()
-        orders = (
-            query.order_by(Order.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
+        total_result = await db.execute(
+            select(func.count()).select_from(query.subquery())
         )
+        total = total_result.scalar_one()
+
+        orders_result = await db.execute(
+            query.order_by(Order.created_at.desc()).offset(skip).limit(limit)
+        )
+        orders = orders_result.scalars().all()
         return orders, total
 
-    def get_by_order_id(
+    async def get_by_order_id(
         self,
-        db: Session,
+        db: AsyncSession,
         order_id: str,
         *,
         requesting_user: User | None = None,
         require_owner_or_admin: bool = False,
     ) -> Order:
-        order = db.query(Order).filter(Order.order_id == order_id).first()
+        result = await db.execute(
+            select(Order).options(selectinload(Order.owner)).where(Order.order_id == order_id)
+        )
+        order = result.scalar_one_or_none()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
@@ -150,18 +161,17 @@ class OrderService(BaseService[Order]):
 
     # ----- mutations ------------------------------------------------------
 
-    def update_quantity(
+    async def update_quantity(
         self,
-        db: Session,
+        db: AsyncSession,
         order_id: str,
         quantity: int,
         user_id: int,
     ) -> tuple[int, int]:
-        order = (
-            db.query(Order)
-            .filter(Order.order_id == order_id, Order.user_id == user_id)
-            .first()
+        result = await db.execute(
+            select(Order).where(Order.order_id == order_id, Order.user_id == user_id)
         )
+        order = result.scalar_one_or_none()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
@@ -174,12 +184,15 @@ class OrderService(BaseService[Order]):
         old_quantity = order.quantity
         order.quantity = quantity
         order.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(order)
+        await db.commit()
+        await db.refresh(order)
         return old_quantity, order.quantity
 
-    def delete_order(self, db: Session, order_id: str, current_user: User) -> tuple[str, str | None]:
-        order = db.query(Order).filter(Order.order_id == order_id).first()
+    async def delete_order(self, db: AsyncSession, order_id: str, current_user: User) -> tuple[str, str | None]:
+        result = await db.execute(
+            select(Order).where(Order.order_id == order_id)
+        )
+        order = result.scalar_one_or_none()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
@@ -195,12 +208,15 @@ class OrderService(BaseService[Order]):
         deleted_id = order.order_id
         deleted_name = order.medication_name
 
-        db.delete(order)
-        db.commit()
+        await db.delete(order)
+        await db.commit()
         return deleted_id, deleted_name
 
-    def review_status(self, db: Session, order_id: str, payload: ReviewOrderRequest) -> Order:
-        order = db.query(Order).filter(Order.order_id == order_id).first()
+    async def review_status(self, db: AsyncSession, order_id: str, payload: ReviewOrderRequest) -> Order:
+        result = await db.execute(
+            select(Order).where(Order.order_id == order_id)
+        )
+        order = result.scalar_one_or_none()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
@@ -218,16 +234,15 @@ class OrderService(BaseService[Order]):
                 order.total_amount = payload.delivery_fee
 
         order.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(order)
+        await db.commit()
+        await db.refresh(order)
         return order
 
-    def confirm_payment_by_user(self, db: Session, order_id: str, user_id: int) -> Order:
-        order = (
-            db.query(Order)
-            .filter(Order.order_id == order_id, Order.user_id == user_id)
-            .first()
+    async def confirm_payment_by_user(self, db: AsyncSession, order_id: str, user_id: int) -> Order:
+        result = await db.execute(
+            select(Order).where(Order.order_id == order_id, Order.user_id == user_id)
         )
+        order = result.scalar_one_or_none()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
@@ -242,12 +257,15 @@ class OrderService(BaseService[Order]):
 
         order.status = OrderStatus.PROCESSING
         order.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(order)
+        await db.commit()
+        await db.refresh(order)
         return order
 
-    def confirm_payment_receipt_by_admin(self, db: Session, order_id: str) -> Order:
-        order = db.query(Order).filter(Order.order_id == order_id).first()
+    async def confirm_payment_receipt_by_admin(self, db: AsyncSession, order_id: str) -> Order:
+        result = await db.execute(
+            select(Order).where(Order.order_id == order_id)
+        )
+        order = result.scalar_one_or_none()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
@@ -262,14 +280,17 @@ class OrderService(BaseService[Order]):
 
         order.status = OrderStatus.PAID
         order.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(order)
+        await db.commit()
+        await db.refresh(order)
         return order
 
-    def update_status_by_admin(
-        self, db: Session, order_id: str, new_status: str,
+    async def update_status_by_admin(
+        self, db: AsyncSession, order_id: str, new_status: str,
     ) -> tuple[OrderStatus, Order]:
-        order = db.query(Order).filter(Order.order_id == order_id).first()
+        result = await db.execute(
+            select(Order).where(Order.order_id == order_id)
+        )
+        order = result.scalar_one_or_none()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found.")
 
@@ -287,8 +308,8 @@ class OrderService(BaseService[Order]):
         old_status = order.status
         order.status = target
         order.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(order)
+        await db.commit()
+        await db.refresh(order)
         return old_status, order
 
     # ----- input validation ----------------------------------------------
