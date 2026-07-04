@@ -10,7 +10,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 import pytest
 import pytest_asyncio
-from fastapi.testclient import TestClient
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -65,22 +65,24 @@ async def client(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
-    # Clear overrides after the test to prevent side effects
+    
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def auth_headers(client):
+@pytest_asyncio.fixture
+async def auth_headers(client):
     """Helper to get a valid token for protected routes."""
     user_data = {
         "username": "testqa",
         "email": "qa@example.com",
         "password": "Password123!",
     }
-    client.post("/api/v1/auth/register", json=user_data)
-    response = client.post("/api/v1/auth/login", json={
+    await client.post("/api/v1/auth/register", json=user_data)
+    response = await client.post("/api/v1/auth/login", json={
         "email": user_data["email"],
         "password": user_data["password"],
     })
@@ -95,7 +97,7 @@ async def admin_headers(client, db_session):
         "email": "adminqa@example.com",
         "password": "Password123!",
     }
-    client.post("/api/v1/auth/register", json=admin_data)
+    await client.post("/api/v1/auth/register", json=admin_data)
 
     result = await db_session.execute(
         select(User).where(User.email == admin_data["email"])
@@ -105,7 +107,7 @@ async def admin_headers(client, db_session):
         user.role = UserRole.ADMIN
         await db_session.commit()
 
-    response = client.post("/api/v1/auth/login", json={
+    response = await client.post("/api/v1/auth/login", json={
         "email": admin_data["email"],
         "password": admin_data["password"],
     })

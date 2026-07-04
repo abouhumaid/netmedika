@@ -1,12 +1,10 @@
 import pytest
 
-# DO NOT import http.client here
-# The 'client' and 'auth_headers' arguments tell pytest to use your conftest fixtures
 
-def test_create_order_no_input(client, auth_headers):
+@pytest.mark.asyncio
+async def test_create_order_no_input(client, auth_headers):
     """Test validation: must provide name OR image"""
-    # Use 'client' (the fixture), not 'http.client'
-    response = client.post(
+    response = await client.post(
         "/api/v1/orders/create", 
         data={"quantity": 1}, 
         headers=auth_headers
@@ -14,13 +12,14 @@ def test_create_order_no_input(client, auth_headers):
     assert response.status_code == 400
     assert "either a medicine name or a prescription image" in response.json()["detail"]
 
-def test_create_order_with_valid_image(client, auth_headers):
+
+@pytest.mark.asyncio
+async def test_create_order_with_valid_image(client, auth_headers):
     """Test magic byte validation with a fake PNG"""
     file_content = b"\x89PNG\r\n\x1a\n" + b"some-random-data"
     files = {"uploaded_image": ("test.png", file_content, "image/png")}
     
-    # Ensure 'client' is passed as a function argument above
-    response = client.post(
+    response = await client.post(
         "/api/v1/orders/create",
         data={
             "medicine_name": "Panadol", 
@@ -43,15 +42,18 @@ def test_create_order_with_valid_image(client, auth_headers):
         except FileNotFoundError:
             pass
 
-def test_order_authorization_bypass(client, auth_headers):
+
+@pytest.mark.asyncio
+async def test_order_authorization_bypass(client, auth_headers):
     """Test that a user cannot view another user's orders"""
     other_user_id = "999"
-    response = client.get(f"/api/v1/orders/user/{other_user_id}", headers=auth_headers)
+    response = await client.get(f"/api/v1/orders/user/{other_user_id}", headers=auth_headers)
     assert response.status_code == 403
 
 
-def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
-    create_response = client.post(
+@pytest.mark.asyncio
+async def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
+    create_response = await client.post(
         "/api/v1/orders/create",
         data={
             "medicine_name": "Amoxicillin",
@@ -63,11 +65,11 @@ def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
     assert create_response.status_code == 201
     order_id = create_response.json()["order_id"]
 
-    all_orders_response = client.get("/api/v1/orders/all", headers=admin_headers)
+    all_orders_response = await client.get("/api/v1/orders/all", headers=admin_headers)
     assert all_orders_response.status_code == 200
     assert any(order["order_id"] == order_id for order in all_orders_response.json()["orders"])
 
-    reject_response = client.patch(
+    reject_response = await client.patch(
         f"/api/v1/orders/{order_id}/review",
         json={"decision": "reject", "reason": "Prescription image is missing."},
         headers=admin_headers,
@@ -76,7 +78,7 @@ def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
     assert reject_response.json()["order"]["status"] == "rejected"
     assert reject_response.json()["order"]["rejection_reason"] == "Prescription image is missing."
 
-    accept_response = client.patch(
+    accept_response = await client.patch(
         f"/api/v1/orders/{order_id}/review",
         json={"decision": "accept", "delivery_fee": 2500},
         headers=admin_headers,
@@ -87,8 +89,9 @@ def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
     assert accept_response.json()["order"]["delivery_fee"] == 2500
 
 
-def test_admin_can_fetch_order_detail(client, auth_headers, admin_headers):
-    create_response = client.post(
+@pytest.mark.asyncio
+async def test_admin_can_fetch_order_detail(client, auth_headers, admin_headers):
+    create_response = await client.post(
         "/api/v1/orders/create",
         data={
             "medicine_name": "Ibuprofen",
@@ -100,7 +103,7 @@ def test_admin_can_fetch_order_detail(client, auth_headers, admin_headers):
     assert create_response.status_code == 201
     order_id = create_response.json()["order_id"]
 
-    detail_response = client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
+    detail_response = await client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
     assert detail_response.status_code == 200
     assert detail_response.json()["order"]["order_id"] == order_id
     assert detail_response.json()["order"]["medication_name"] == "Ibuprofen"
@@ -108,8 +111,9 @@ def test_admin_can_fetch_order_detail(client, auth_headers, admin_headers):
     assert "frequency" not in detail_response.json()["order"]
 
 
-def test_admin_can_delete_rejected_order(client, auth_headers, admin_headers):
-    create_response = client.post(
+@pytest.mark.asyncio
+async def test_admin_can_delete_rejected_order(client, auth_headers, admin_headers):
+    create_response = await client.post(
         "/api/v1/orders/create",
         data={
             "medicine_name": "Cefuroxime",
@@ -121,25 +125,26 @@ def test_admin_can_delete_rejected_order(client, auth_headers, admin_headers):
     assert create_response.status_code == 201
     order_id = create_response.json()["order_id"]
 
-    reject_response = client.patch(
+    reject_response = await client.patch(
         f"/api/v1/orders/{order_id}/review",
         json={"decision": "reject", "reason": "Incomplete order information."},
         headers=admin_headers,
     )
     assert reject_response.status_code == 200
 
-    delete_response = client.delete(f"/api/v1/orders/delete/{order_id}", headers=admin_headers)
+    delete_response = await client.delete(f"/api/v1/orders/delete/{order_id}", headers=admin_headers)
     assert delete_response.status_code == 200
     assert delete_response.json()["success"] is True
     assert delete_response.json()["order_id"] == order_id
 
-    detail_response = client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
+    detail_response = await client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
     assert detail_response.status_code == 404
 
 
-def test_admin_can_update_order_status(client, auth_headers, admin_headers):
+@pytest.mark.asyncio
+async def test_admin_can_update_order_status(client, auth_headers, admin_headers):
     # 1. Create order
-    create_response = client.post(
+    create_response = await client.post(
         "/api/v1/orders/create",
         data={
             "medicine_name": "Paracetamol",
@@ -152,14 +157,14 @@ def test_admin_can_update_order_status(client, auth_headers, admin_headers):
     order_id = create_response.json()["order_id"]
 
     # 2. Assert customer cannot update status directly
-    user_status_response = client.patch(
+    user_status_response = await client.patch(
         f"/api/v1/orders/{order_id}/status?status=delivered",
         headers=auth_headers
     )
     assert user_status_response.status_code == 403
 
     # 3. Assert admin can update to valid status
-    admin_status_response = client.patch(
+    admin_status_response = await client.patch(
         f"/api/v1/orders/{order_id}/status?status=delivered",
         headers=admin_headers
     )
@@ -168,7 +173,7 @@ def test_admin_can_update_order_status(client, auth_headers, admin_headers):
     assert admin_status_response.json()["order"]["status"] == "delivered"
 
     # 4. Assert admin update fails with invalid status
-    invalid_status_response = client.patch(
+    invalid_status_response = await client.patch(
         f"/api/v1/orders/{order_id}/status?status=invalid_status_value",
         headers=admin_headers
     )
@@ -176,8 +181,9 @@ def test_admin_can_update_order_status(client, auth_headers, admin_headers):
     assert "Invalid status" in invalid_status_response.json()["detail"]
 
 
-def test_order_payment_lifecycle_statuses(client, auth_headers, admin_headers):
-    create_response = client.post(
+@pytest.mark.asyncio
+async def test_order_payment_lifecycle_statuses(client, auth_headers, admin_headers):
+    create_response = await client.post(
         "/api/v1/orders/create",
         data={
             "medicine_name": "Cetirizine",
@@ -189,7 +195,7 @@ def test_order_payment_lifecycle_statuses(client, auth_headers, admin_headers):
     assert create_response.status_code == 201
     order_id = create_response.json()["order_id"]
 
-    accept_response = client.patch(
+    accept_response = await client.patch(
         f"/api/v1/orders/{order_id}/review",
         json={"decision": "accept", "delivery_fee": 1200},
         headers=admin_headers,
@@ -197,28 +203,28 @@ def test_order_payment_lifecycle_statuses(client, auth_headers, admin_headers):
     assert accept_response.status_code == 200
     assert accept_response.json()["order"]["status"] == "verified"
 
-    payment_response = client.post(
+    payment_response = await client.post(
         f"/api/v1/orders/{order_id}/confirm-payment",
         headers=auth_headers,
     )
     assert payment_response.status_code == 200
     assert payment_response.json()["status"] == "processing"
 
-    receipt_response = client.post(
+    receipt_response = await client.post(
         f"/api/v1/orders/{order_id}/confirm-payment-receipt",
         headers=admin_headers,
     )
     assert receipt_response.status_code == 200
     assert receipt_response.json()["order"]["status"] == "paid"
 
-    completed_response = client.patch(
+    completed_response = await client.patch(
         f"/api/v1/orders/{order_id}/status?status=completed",
         headers=admin_headers,
     )
     assert completed_response.status_code == 200
     assert completed_response.json()["order"]["status"] == "completed"
 
-    cancelled_response = client.patch(
+    cancelled_response = await client.patch(
         f"/api/v1/orders/{order_id}/status?status=cancelled",
         headers=admin_headers,
     )
