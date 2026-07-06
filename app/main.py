@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -18,7 +19,19 @@ load_dotenv()
 from app.api.v1 import api_router  
 from app.core.config import settings  
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup code
+    print("Starting application...")
+
+    yield
+
+    # Shutdown code
+    print("Stopping application...")
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Static uploads
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
