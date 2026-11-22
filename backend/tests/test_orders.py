@@ -1,0 +1,255 @@
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_create_order_no_input(client, auth_headers):
+    """Test validation: must provide name OR image"""
+    response = await client.post(
+        "/api/v1/orders/create", 
+        data={"quantity": 1}, 
+        headers=auth_headers
+    )
+    assert response.status_code == 400
+    assert "either a medicine name or a prescription image" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_order_with_valid_image(client, auth_headers):
+    """Test magic byte validation with a fake PNG"""
+    file_content = b"\x89PNG\r\n\x1a\n" + b"some-random-data"
+    files = {"uploaded_image": ("test.png", file_content, "image/png")}
+    
+    response = await client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Panadol", 
+            "delivery_address": "123 Test Street, City Center", 
+            "quantity": 2
+        },
+        files=files,
+        headers=auth_headers
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert "strength" not in body
+    assert "frequency" not in body
+    # If a file was saved, delete it to keep test environment clean
+    prescription = body.get("prescription_image")
+    if prescription:
+        from pathlib import Path
+        try:
+            Path(prescription).unlink()
+        except FileNotFoundError:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_order_authorization_bypass(client, auth_headers):
+    """Test that a user cannot view another user's orders"""
+    other_user_id = "999"
+    response = await client.get(f"/api/v1/orders/user/{other_user_id}", headers=auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_customer_can_list_orders_with_owner_fields_loaded(client, auth_headers):
+    create_response = await client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Cetirizine",
+            "delivery_address": "14 Broad Street, Lagos Island, Lagos",
+            "quantity": 1,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+
+    response = await client.get("/api/v1/orders/my-orders", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_orders"] == 1
+    assert body["orders"][0]["order_id"] == create_response.json()["order_id"]
+    assert body["orders"][0]["user_name"] == "testqa"
+    assert body["orders"][0]["user_email"] == "qa@example.com"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_list_and_review_orders(client, auth_headers, admin_headers):
+    create_response = await client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Amoxicillin",
+            "delivery_address": "42 Herbert Macaulay Way, Yaba, Lagos",
+            "quantity": 1,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    all_orders_response = await client.get("/api/v1/orders/all", headers=admin_headers)
+    assert all_orders_response.status_code == 200
+    assert any(order["order_id"] == order_id for order in all_orders_response.json()["orders"])
+
+    reject_response = await client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "reject", "reason": "Prescription image is missing."},
+        headers=admin_headers,
+    )
+    assert reject_response.status_code == 200
+    assert reject_response.json()["order"]["status"] == "rejected"
+    assert reject_response.json()["order"]["rejection_reason"] == "Prescription image is missing."
+
+    accept_response = await client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "accept", "delivery_fee": 2500},
+        headers=admin_headers,
+    )
+    assert accept_response.status_code == 200
+    assert accept_response.json()["order"]["status"] == "verified"
+    assert accept_response.json()["order"]["rejection_reason"] is None
+    assert accept_response.json()["order"]["delivery_fee"] == 2500
+
+
+@pytest.mark.asyncio
+async def test_admin_can_fetch_order_detail(client, auth_headers, admin_headers):
+    create_response = await client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Ibuprofen",
+            "delivery_address": "15 Marina Road, Lagos Island, Lagos",
+            "quantity": 3,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    detail_response = await client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
+    assert detail_response.status_code == 200
+    assert detail_response.json()["order"]["order_id"] == order_id
+    assert detail_response.json()["order"]["medication_name"] == "Ibuprofen"
+    assert "strength" not in detail_response.json()["order"]
+    assert "frequency" not in detail_response.json()["order"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_delete_rejected_order(client, auth_headers, admin_headers):
+    create_response = await client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Cefuroxime",
+            "delivery_address": "22 Allen Avenue, Ikeja, Lagos",
+            "quantity": 1,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    reject_response = await client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "reject", "reason": "Incomplete order information."},
+        headers=admin_headers,
+    )
+    assert reject_response.status_code == 200
+
+    delete_response = await client.delete(f"/api/v1/orders/delete/{order_id}", headers=admin_headers)
+    assert delete_response.status_code == 200
+    assert delete_response.json()["success"] is True
+    assert delete_response.json()["order_id"] == order_id
+
+    detail_response = await client.get(f"/api/v1/orders/{order_id}", headers=admin_headers)
+    assert detail_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_order_status(client, auth_headers, admin_headers):
+    # 1. Create order
+    create_response = await client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Paracetamol",
+            "delivery_address": "8 Lekki Phase 1, Lagos",
+            "quantity": 5,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    # 2. Assert customer cannot update status directly
+    user_status_response = await client.patch(
+        f"/api/v1/orders/{order_id}/status?status=delivered",
+        headers=auth_headers
+    )
+    assert user_status_response.status_code == 403
+
+    # 3. Assert admin can update to valid status
+    admin_status_response = await client.patch(
+        f"/api/v1/orders/{order_id}/status?status=delivered",
+        headers=admin_headers
+    )
+    assert admin_status_response.status_code == 200
+    assert admin_status_response.json()["success"] is True
+    assert admin_status_response.json()["order"]["status"] == "delivered"
+
+    # 4. Assert admin update fails with invalid status
+    invalid_status_response = await client.patch(
+        f"/api/v1/orders/{order_id}/status?status=invalid_status_value",
+        headers=admin_headers
+    )
+    assert invalid_status_response.status_code == 400
+    assert "Invalid status" in invalid_status_response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_order_payment_lifecycle_statuses(client, auth_headers, admin_headers):
+    create_response = await client.post(
+        "/api/v1/orders/create",
+        data={
+            "medicine_name": "Cetirizine",
+            "delivery_address": "14 Broad Street, Lagos Island, Lagos",
+            "quantity": 1,
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    order_id = create_response.json()["order_id"]
+
+    accept_response = await client.patch(
+        f"/api/v1/orders/{order_id}/review",
+        json={"decision": "accept", "delivery_fee": 1200},
+        headers=admin_headers,
+    )
+    assert accept_response.status_code == 200
+    assert accept_response.json()["order"]["status"] == "verified"
+
+    payment_response = await client.post(
+        f"/api/v1/orders/{order_id}/confirm-payment",
+        headers=auth_headers,
+    )
+    assert payment_response.status_code == 200
+    assert payment_response.json()["status"] == "processing"
+
+    receipt_response = await client.post(
+        f"/api/v1/orders/{order_id}/confirm-payment-receipt",
+        headers=admin_headers,
+    )
+    assert receipt_response.status_code == 200
+    assert receipt_response.json()["order"]["status"] == "paid"
+
+    completed_response = await client.patch(
+        f"/api/v1/orders/{order_id}/status?status=completed",
+        headers=admin_headers,
+    )
+    assert completed_response.status_code == 200
+    assert completed_response.json()["order"]["status"] == "completed"
+
+    cancelled_response = await client.patch(
+        f"/api/v1/orders/{order_id}/status?status=cancelled",
+        headers=admin_headers,
+    )
+    assert cancelled_response.status_code == 200
+    assert cancelled_response.json()["order"]["status"] == "cancelled"

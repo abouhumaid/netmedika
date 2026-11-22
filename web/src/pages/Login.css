@@ -1,0 +1,153 @@
+.netmedika-login {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(0, 1fr);
+  background: #f4f8f7;
+  color: #0f172a;
+  font-family: 'Quicksand', system-ui, sans-serif;
+}
+
+.netmedika-login__brand {
+  display: none;
+  position: relative;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 3rem;
+  color: white;
+  background: linear-gradient(145deg, #0f766e 0%, #115e59 100%);
+}
+
+.netmedika-login__panel {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  background: #f4fffc;
+}
+
+.netmedika-login__content {
+  width: min(100%, 390px);
+}
+
+.netmedika-login__social-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.netmedika-login__social-button {
+  display: flex;
+  height: 2.75rem;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  background: #fff;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  transition: background-color 150ms ease;
+}
+
+.netmedika-login__social-button:hover {
+  background: #f8fafc;
+}
+
+.netmedika-login__google {
+  display: inline-flex;
+  font-size: 0.875rem;
+  font-weight: 900;
+}
+
+.netmedika-login__google b { font-weight: 900; }
+.netmedika-login__google b:nth-child(1), .netmedika-login__google b:nth-child(4) { color: #4285f4; }
+.netmedika-login__google b:nth-child(2), .netmedika-login__google b:nth-child(6) { color: #ea4335; }
+.netmedika-login__google b:nth-child(3) { color: #fbbc05; }
+.netmedika-login__google b:nth-child(5) { color: #34a853; }
+
+.netmedika-login__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 1rem;
+  color: #94a3b8;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.094em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.netmedika-login__divider span:first-child,
+.netmedika-login__divider span:last-child {
+  height: 1px;
+  flex: 1;
+  background: #e2e8f0;
+}
+
+.netmedika-login__input {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #1e293b;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.netmedika-login__input::placeholder {
+  color: #94a3b8;
+}
+
+.netmedika-login__submit {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 0.625rem;
+  background: #0f766e;
+  color: white;
+  font-family: inherit;
+  font-weight: 700;
+  box-shadow: 0 7px 16px rgba(15, 118, 110, 0.16);
+}
+
+.netmedika-login__submit:hover {
+  background: #115e59;
+}
+
+.netmedika-login__demo {
+  border: 1px solid #cdebe3;
+  border-radius: 0.75rem;
+  background: #f0faf7;
+}
+
+.netmedika-login__field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #64748b;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 1024px) {
+  .netmedika-login {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    background: #fff;
+  }
+
+  .netmedika-login__brand {
+    display: flex;
+  }
+
+  .netmedika-login__panel {
+    background: #fff;
+    padding: 3rem;
+  }
+}
