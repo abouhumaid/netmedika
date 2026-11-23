@@ -25,7 +25,14 @@ def _make_sync_url(url: str) -> str:
     parsed = make_url(url)
     if parsed.drivername == "sqlite+aiosqlite":
         return parsed.set(drivername="sqlite").render_as_string(hide_password=False)
-    if parsed.drivername == "postgresql+asyncpg":
+    # Bare PostgreSQL URLs select psycopg2 by default in SQLAlchemy. The
+    # project installs psycopg 3, so force all sync PostgreSQL aliases to it.
+    if parsed.drivername in {
+        "postgres",
+        "postgresql",
+        "postgresql+asyncpg",
+        "postgresql+psycopg2",
+    }:
         return parsed.set(drivername="postgresql+psycopg").render_as_string(hide_password=False)
     return url
 
