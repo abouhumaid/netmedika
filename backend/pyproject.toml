@@ -7,7 +7,7 @@ name = "app"
 version = "1.0.0"
 description = "NetMedika API - Online Medicine Order App"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = "==3.11.*"
 license = "MIT"
 authors = [
     {name = "NetMedika Team", email = "team@netmedika.com"}
