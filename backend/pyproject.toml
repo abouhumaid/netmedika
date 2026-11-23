@@ -33,38 +33,32 @@ dependencies = [
     # jinja2, python-multipart, email-validator, typer
     "fastapi[standard]>=0.115.0",
     "uvloop>=0.22.1; sys_platform != 'win32'",  # faster event loop (non-Windows)
-
     # Database
     "sqlalchemy>=2.0.48",
     "alembic>=1.18.4",
     "psycopg>=3.3.3",                           # psycopg3 (sync driver for alembic)
     "asyncpg>=0.29.0",                          # async Postgres driver
     "aiosqlite>=0.20.0",                        # async SQLite driver
-
     # Validation & settings
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
-
     # Auth & security
     "python-jose>=3.5.0",                       # JWT encode/decode
     "argon2-cffi>=25.1.0",                      # password hashing
     "cryptography>=46.0.5",                     # RSA + crypto primitives
     "passlib>=1.7.4",                           # password hashing context
-
     # Rate limiting
     "slowapi>=0.1.9",
-
     # Config
     "python-dotenv>=1.2.2",
-
     # Monitoring (remove if Sentry not yet configured)
     "sentry-sdk>=2.54.0",
-
     # Optional — uncomment only if your app uses these
     # "websockets>=16.0",                       # WebSocket endpoints
     # "pydantic-extra-types>=2.11.0",           # PhoneNumber, Color, etc.
     # "pyyaml>=6.0.3",                          # YAML config files
     # "dnspython>=2.8.0",                       # DNS-based email validation
+    "fastapi-cloud-cli>=0.28.0",
 ]
 
 [project.optional-dependencies]

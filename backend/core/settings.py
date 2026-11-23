@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = "sqlite:///./test.db"
+    database_url: str = "postgresql+psycopg://netmedika_user:netmedika@localhost:5432/netmedika"
 
     jwt_secret_key: str = Field(default="", validation_alias="SECRET_KEY")
     jwt_algorithm: str = "HS256"
