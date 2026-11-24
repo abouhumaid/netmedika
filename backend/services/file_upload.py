@@ -1,25 +1,28 @@
-"""Reusable image upload helper with magic-byte validation and safe path resolution."""
+"""Image validation and persistence for Supabase Storage or local development."""
 
 from __future__ import annotations
 
 import logging
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import HTTPException, UploadFile, status
+import httpx
 
 from backend.core.settings import settings
 
 logger = logging.getLogger(__name__)
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 _STATIC_UPLOAD_ROOT = (_BACKEND_DIR / "uploads").resolve()
+_SUPABASE_REF_PREFIX = "supabase://"
 
 
 class FileUploadService:
-    """Validates an uploaded image and persists it under a configured directory.
+    """Validates image content and stores it in Supabase when configured.
 
-    Subclass or pass a different ``upload_dir`` / ``max_bytes`` to support
-    other file types. The default recognises JPEG, PNG, GIF and WebP.
+    Local disk storage remains available for development. Supabase objects are
+    kept private and represented in the database by ``supabase://`` references.
     """
 
     _SIGNATURES: list[tuple[str, str, int, bytes]] = [
@@ -48,8 +51,13 @@ class FileUploadService:
 
     # ----- public API -----------------------------------------------------
 
-    async def save_image(self, uploaded: UploadFile, filename_prefix: str = "") -> str:
-        """Validate, persist and return a stable public path for the image."""
+    async def save_image(
+        self,
+        uploaded: UploadFile,
+        filename_prefix: str = "",
+        folder: str = "uploads",
+    ) -> str:
+        """Validate, persist and return a stable image reference."""
         contents = await uploaded.read(self.max_bytes + 1)
         if len(contents) > self.max_bytes:
             raise HTTPException(
@@ -63,13 +71,29 @@ class FileUploadService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid file type. Only JPEG, PNG, GIF and WebP images are accepted.",
             )
-        _mime_type, file_ext = detected
+        mime_type, file_ext = detected
 
         unique = (
             f"{filename_prefix}_{uuid.uuid4().hex[:8]}{file_ext}"
             if filename_prefix
             else f"{uuid.uuid4().hex[:8]}{file_ext}"
         )
+        supabase_config = self._get_supabase_config()
+        if supabase_config is not None:
+            if folder not in {"orders", "profiles", "uploads"}:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid upload folder.",
+                )
+            object_path = f"{folder}/{unique}"
+            await self._upload_to_supabase(
+                supabase_config,
+                object_path,
+                contents,
+                mime_type,
+            )
+            return f"{_SUPABASE_REF_PREFIX}{settings.supabase_storage_bucket}/{object_path}"
+
         dest_path = self.upload_dir / unique
 
         # Path-traversal guard: resolved target must remain inside upload_dir.
@@ -87,6 +111,161 @@ class FileUploadService:
         # URLs consistent regardless of the process working directory.
         relative_dir = self.upload_dir.relative_to(_STATIC_UPLOAD_ROOT)
         return (Path("uploads") / relative_dir / unique).as_posix()
+
+    async def resolve_image_url(self, image_ref: str | None) -> str | None:
+        """Turn a stored Supabase reference into a time-limited download URL."""
+        return (await self.resolve_image_urls([image_ref]))[0]
+
+    async def resolve_image_urls(self, image_refs: list[str | None]) -> list[str | None]:
+        """Sign all private Supabase images in a response with one request per bucket."""
+        resolved = list(image_refs)
+        grouped: dict[str, list[tuple[int, str]]] = {}
+        for index, image_ref in enumerate(image_refs):
+            if not image_ref or not image_ref.startswith(_SUPABASE_REF_PREFIX):
+                continue
+            bucket_and_path = image_ref[len(_SUPABASE_REF_PREFIX):]
+            bucket, separator, object_path = bucket_and_path.partition("/")
+            if not separator or not bucket or not object_path:
+                logger.error("Invalid Supabase image reference")
+                raise HTTPException(status_code=500, detail="Stored image reference is invalid.")
+            grouped.setdefault(bucket, []).append((index, object_path))
+
+        if not grouped:
+            return resolved
+
+        config = self._get_supabase_config(required=True)
+        assert config is not None
+        base_url, service_key = config
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                for bucket, indexed_paths in grouped.items():
+                    endpoint = self._bucket_sign_endpoint(base_url, bucket)
+                    response = await client.post(
+                        endpoint,
+                        headers=self._storage_headers(service_key, "application/json"),
+                        json={
+                            "expiresIn": settings.supabase_signed_url_expiry_seconds,
+                            "paths": [path for _, path in indexed_paths],
+                        },
+                    )
+                    response.raise_for_status()
+                    results = response.json()
+                    if not isinstance(results, list) or len(results) != len(indexed_paths):
+                        raise ValueError("Supabase returned an invalid signed URL list")
+                    for (index, _), result in zip(indexed_paths, results):
+                        signed_url = result.get("signedURL") or result.get("signedUrl")
+                        if not isinstance(signed_url, str) or not signed_url:
+                            raise ValueError("Supabase returned an invalid signed image URL")
+                        resolved[index] = self._absolute_signed_url(base_url, signed_url)
+        except (httpx.HTTPError, ValueError):
+            logger.exception("Could not sign Supabase image URLs")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Image storage is temporarily unavailable.",
+            ) from None
+        return resolved
+
+    async def delete_image(self, image_ref: str | None) -> None:
+        """Best-effort deletion of a local image or Supabase object."""
+        if not image_ref:
+            return
+        if not image_ref.startswith(_SUPABASE_REF_PREFIX):
+            if not image_ref.startswith(("https://", "http://")):
+                self.delete_safely(image_ref)
+            return
+
+        bucket_and_path = image_ref[len(_SUPABASE_REF_PREFIX):]
+        bucket, separator, object_path = bucket_and_path.partition("/")
+        if not separator or not bucket or not object_path:
+            logger.warning("Could not delete invalid Supabase image reference")
+            return
+        try:
+            config = self._get_supabase_config(required=True)
+            assert config is not None
+            base_url, service_key = config
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.delete(
+                    self._object_endpoint(base_url, bucket, object_path),
+                    headers=self._storage_headers(service_key),
+                )
+                response.raise_for_status()
+            logger.info("Deleted Supabase image object from bucket %s", bucket)
+        except (HTTPException, httpx.HTTPError):
+            logger.warning("Could not delete Supabase image object", exc_info=True)
+
+    async def _upload_to_supabase(
+        self,
+        config: tuple[str, str],
+        object_path: str,
+        contents: bytes,
+        mime_type: str,
+    ) -> None:
+        base_url, service_key = config
+        endpoint = self._object_endpoint(base_url, settings.supabase_storage_bucket, object_path)
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    endpoint,
+                    headers={
+                        **self._storage_headers(service_key, mime_type),
+                        "x-upsert": "false",
+                        "cache-control": "3600",
+                    },
+                    content=contents,
+                )
+                response.raise_for_status()
+        except httpx.HTTPError:
+            logger.exception("Supabase image upload failed")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Image storage is temporarily unavailable.",
+            ) from None
+
+    def _get_supabase_config(self, required: bool = False) -> tuple[str, str] | None:
+        base_url = settings.supabase_url.strip().rstrip("/")
+        service_key = settings.supabase_service_role_key.get_secret_value().strip()
+        if base_url and service_key:
+            return base_url, service_key
+        if (
+            not base_url
+            and not service_key
+            and not required
+            and settings.env != "production"
+        ):
+            return None
+        logger.error("Supabase Storage requires both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Image storage is not configured.",
+        )
+
+    @staticmethod
+    def _object_endpoint(base_url: str, bucket: str, object_path: str) -> str:
+        encoded_bucket = quote(bucket, safe="")
+        encoded_path = quote(object_path, safe="/")
+        return f"{base_url}/storage/v1/object/{encoded_bucket}/{encoded_path}"
+
+    @staticmethod
+    def _bucket_sign_endpoint(base_url: str, bucket: str) -> str:
+        return f"{base_url}/storage/v1/object/sign/{quote(bucket, safe='')}"
+
+    @staticmethod
+    def _absolute_signed_url(base_url: str, signed_url: str) -> str:
+        if signed_url.startswith(("https://", "http://")):
+            return signed_url
+        if signed_url.startswith("/storage/v1/"):
+            return f"{base_url}{signed_url}"
+        return f"{base_url}/storage/v1/{signed_url.lstrip('/')}"
+
+    @staticmethod
+    def _storage_headers(service_key: str, content_type: str | None = None) -> dict[str, str]:
+        headers = {
+            "apikey": service_key,
+            "Authorization": f"Bearer {service_key}",
+        }
+        if content_type:
+            headers["Content-Type"] = content_type
+        return headers
 
     def delete_safely(self, public_path: str | None) -> None:
         """Best-effort deletion of a previously stored image."""

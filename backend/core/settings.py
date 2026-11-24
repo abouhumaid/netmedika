@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -39,6 +39,14 @@ class Settings(BaseSettings):
 
     upload_dir: str = "uploads/prescriptions"
     max_upload_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
+    supabase_url: str = Field(default="", validation_alias="SUPABASE_URL")
+    supabase_service_role_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="SUPABASE_SERVICE_ROLE_KEY"
+    )
+    supabase_storage_bucket: str = Field(default="uploads", validation_alias="SUPABASE_STORAGE_BUCKET")
+    supabase_signed_url_expiry_seconds: int = Field(
+        default=3600, gt=0, le=604800, validation_alias="SUPABASE_SIGNED_URL_EXPIRY_SECONDS"
+    )
 
     google_client_id: str = Field(default="", validation_alias="GOOGLE_CLIENT_ID")
     apple_client_id: str = Field(default="", validation_alias="APPLE_CLIENT_ID")
@@ -77,6 +85,11 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_oauth_client_id(cls, value: object) -> str:
         return str(value or "").strip()
+
+    @field_validator("supabase_url", "supabase_storage_bucket", mode="before")
+    @classmethod
+    def normalize_supabase_setting(cls, value: object) -> str:
+        return str(value or "").strip().rstrip("/")
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> Settings:

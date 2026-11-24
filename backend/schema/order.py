@@ -55,7 +55,11 @@ class OrderSummary(BaseModel):
     updated_at: datetime
 
     @classmethod
-    def from_order(cls, order: Order) -> "OrderSummary":
+    def from_order(
+        cls,
+        order: Order,
+        prescription_image: str | None = None,
+    ) -> "OrderSummary":
         return cls(
             order_id=order.order_id,
             user_id=order.user_id,
@@ -63,7 +67,11 @@ class OrderSummary(BaseModel):
             user_email=order.owner.email if order.owner else None,
             dosage_form=order.dosage_form,
             medication_name=order.medication_name,
-            prescription_image=order.prescription_image,
+            prescription_image=(
+                prescription_image
+                if prescription_image is not None
+                else order.prescription_image
+            ),
             quantity=order.quantity,
             delivery_address=order.delivery_address,
             delivery_fee=order.delivery_fee,

@@ -47,12 +47,14 @@ class OrderService(BaseService[Order]):
             delivery_address=delivery_address,
         )
 
+        image_path: str | None = None
         try:
             order_id = f"ORD_{uuid.uuid4().hex[:12].upper()}"
-            image_path = None
             if uploaded_image is not None:
                 image_path = await self.file_upload.save_image(
-                    uploaded_image, filename_prefix=order_id,
+                    uploaded_image,
+                    filename_prefix=order_id,
+                    folder="orders",
                 )
 
             new_order = Order(
@@ -70,9 +72,13 @@ class OrderService(BaseService[Order]):
             )
             return await self.save(db, new_order)
         except HTTPException:
+            if image_path:
+                await self.file_upload.delete_image(image_path)
             raise
         except Exception as exc:
             await db.rollback()
+            if image_path:
+                await self.file_upload.delete_image(image_path)
             logger.error(
                 "Order creation failed for user %s: %s",
                 current_user.id, exc, exc_info=True,
@@ -204,7 +210,7 @@ class OrderService(BaseService[Order]):
             raise HTTPException(status_code=400, detail="Cannot delete a completed order.")
 
         if order.prescription_image:
-            self.file_upload.delete_safely(order.prescription_image)
+            await self.file_upload.delete_image(order.prescription_image)
 
         deleted_id = order.order_id
         deleted_name = order.medication_name

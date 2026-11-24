@@ -29,14 +29,31 @@ from backend.services.email import (
 )
 from backend.services.order import OrderService
 from backend.services.notification import NotificationService
+from backend.services.file_upload import FileUploadService
 
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
 _order_service = OrderService()
 _notification_service = NotificationService()
+_file_upload = FileUploadService()
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+
+async def _order_summary(order) -> OrderSummary:
+    image_url = await _file_upload.resolve_image_url(order.prescription_image)
+    return OrderSummary.from_order(order, prescription_image=image_url)
+
+
+async def _order_summaries(orders) -> list[OrderSummary]:
+    image_urls = await _file_upload.resolve_image_urls(
+        [order.prescription_image for order in orders]
+    )
+    return [
+        OrderSummary.from_order(order, prescription_image=image_url)
+        for order, image_url in zip(orders, image_urls)
+    ]
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -70,7 +87,7 @@ async def create_order(
         user_id=new_order.user_id,
         dosage_form=new_order.dosage_form,
         medication_name=new_order.medication_name,
-        prescription_image=new_order.prescription_image,
+        prescription_image=await _file_upload.resolve_image_url(new_order.prescription_image),
         delivery_address=new_order.delivery_address,
         status=new_order.status,
         created_at=new_order.created_at,
@@ -117,7 +134,7 @@ async def get_my_orders(
     return {
         "user_id": current_user.id,
         "total_orders": total,
-        "orders": [OrderSummary.from_order(o) for o in orders],
+        "orders": await _order_summaries(orders),
     }
 
 
@@ -178,7 +195,7 @@ async def get_user_orders(
     return {
         "user_id": user_id,
         "total_orders": total,
-        "orders": [OrderSummary.from_order(o) for o in orders],
+        "orders": await _order_summaries(orders),
     }
 
 
@@ -200,7 +217,7 @@ async def get_all_orders(
     )
     return {
         "total_orders": total,
-        "orders": [OrderSummary.from_order(o) for o in orders],
+        "orders": await _order_summaries(orders),
     }
 
 
@@ -216,7 +233,7 @@ async def get_order(
         requesting_user=current_user,
         require_owner_or_admin=True,
     )
-    return {"order": OrderSummary.from_order(order)}
+    return {"order": await _order_summary(order)}
 
 
 @router.patch("/{order_id}/review", response_model=dict)
@@ -231,7 +248,7 @@ async def review_order(
     return {
         "success": True,
         "message": f"Order {action} successfully.",
-        "order": OrderSummary.from_order(order),
+        "order": await _order_summary(order),
     }
 
 
@@ -268,7 +285,7 @@ async def confirm_payment_receipt(
     return {
         "success": True,
         "message": "Payment receipt confirmed. Order marked as paid.",
-        "order": OrderSummary.from_order(order),
+        "order": await _order_summary(order),
     }
 
 
@@ -303,5 +320,5 @@ async def update_order_status_admin(
     return {
         "success": True,
         "message": f"Order status updated successfully to '{order.status.value}'.",
-        "order": OrderSummary.from_order(order),
+        "order": await _order_summary(order),
     }

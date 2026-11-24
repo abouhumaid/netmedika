@@ -16,9 +16,16 @@ _user_service = UserService()
 _file_upload = FileUploadService()
 
 
+async def _user_response(user: User) -> UserResponse:
+    response = UserResponse.model_validate(user, from_attributes=True)
+    return response.model_copy(
+        update={"profile_picture": await _file_upload.resolve_image_url(response.profile_picture)}
+    )
+
+
 @router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
-    return UserResponse.model_validate(current_user, from_attributes=True)
+    return await _user_response(current_user)
 
 
 @router.patch("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
@@ -32,7 +39,7 @@ async def update_me(
     current_user.address = request.address.strip() if request.address else None
     await db.commit()
     await db.refresh(current_user)
-    return UserResponse.model_validate(current_user, from_attributes=True)
+    return await _user_response(current_user)
 
 
 @router.post("/avatar", response_model=UserResponse, status_code=status.HTTP_200_OK)
@@ -42,12 +49,22 @@ async def update_avatar(
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     old_picture = current_user.profile_picture
-    current_user.profile_picture = await _file_upload.save_image(image, filename_prefix=f"user_{current_user.id}")
-    await db.commit()
-    await db.refresh(current_user)
-    if old_picture and old_picture != current_user.profile_picture and not old_picture.startswith("http"):
-        _file_upload.delete_safely(old_picture)
-    return UserResponse.model_validate(current_user, from_attributes=True)
+    new_picture = await _file_upload.save_image(
+        image,
+        filename_prefix=f"user_{current_user.id}",
+        folder="profiles",
+    )
+    current_user.profile_picture = new_picture
+    try:
+        await db.commit()
+        await db.refresh(current_user)
+    except Exception:
+        await db.rollback()
+        await _file_upload.delete_image(new_picture)
+        raise
+    if old_picture and old_picture != current_user.profile_picture:
+        await _file_upload.delete_image(old_picture)
+    return await _user_response(current_user)
 
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)

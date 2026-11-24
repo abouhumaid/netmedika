@@ -21,21 +21,45 @@ from backend.schema.user import (
     UserResponse,
 )
 from backend.services.email import is_email_configured, send_admin_credentials
+from backend.services.file_upload import FileUploadService
 from backend.services.user import UserService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 _user_service = UserService()
+_file_upload = FileUploadService()
 logger = logging.getLogger(__name__)
 
 
-def _user_summary(user: User) -> dict:
+async def _user_response(user: User) -> UserResponse:
+    response = UserResponse.model_validate(user, from_attributes=True)
+    return response.model_copy(
+        update={"profile_picture": await _file_upload.resolve_image_url(response.profile_picture)}
+    )
+
+
+async def _user_summary(user: User) -> dict:
+    profile_picture = await _file_upload.resolve_image_url(user.profile_picture)
+    return _user_summary_data(user, profile_picture)
+
+
+async def _user_summaries(users: list[User]) -> list[dict]:
+    profile_pictures = await _file_upload.resolve_image_urls(
+        [user.profile_picture for user in users]
+    )
+    return [
+        _user_summary_data(user, picture)
+        for user, picture in zip(users, profile_pictures)
+    ]
+
+
+def _user_summary_data(user: User, profile_picture: str | None) -> dict:
     return {
         "id": user.id,
         "username": user.username,
         "email": user.email,
         "role": user.role.value if hasattr(user.role, "value") else user.role,
-        "profile_picture": user.profile_picture,
+        "profile_picture": profile_picture,
         "address": user.address,
         "is_active": user.is_active,
     }
@@ -52,7 +76,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)) -> Au
     res = await _user_service.login(db, request)
     return AuthResponse(
         message="Login successful",
-        user=UserResponse.model_validate(res["user"], from_attributes=True),
+        user=await _user_response(res["user"]),
         access_token=res["access_token"],
         refresh_token=res["refresh_token"],
     )
@@ -60,19 +84,23 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)) -> Au
 
 @router.post("/google", response_model=AuthResponse)
 async def google_login(request: SocialLoginRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
-    return _social_auth_response(await _user_service.social_login(db, "google", request.id_token))
+    return await _social_auth_response(
+        await _user_service.social_login(db, "google", request.id_token)
+    )
 
 
 @router.post("/apple", response_model=AuthResponse)
 async def apple_login(request: SocialLoginRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
-    return _social_auth_response(await _user_service.social_login(db, "apple", request.id_token))
+    return await _social_auth_response(
+        await _user_service.social_login(db, "apple", request.id_token)
+    )
 
 
-def _social_auth_response(res: dict) -> AuthResponse:
+async def _social_auth_response(res: dict) -> AuthResponse:
     logger.info("Social sign-in succeeded for user_id=%s", res["user"].id)
     return AuthResponse(
         message="Login successful",
-        user=UserResponse.model_validate(res["user"], from_attributes=True),
+        user=await _user_response(res["user"]),
         access_token=res["access_token"],
         refresh_token=res["refresh_token"],
     )
@@ -84,7 +112,7 @@ async def list_users(
     _: User = Depends(require_admin),
 ) -> dict:
     users = await _user_service.list_all(db)
-    return {"users": [_user_summary(u) for u in users]}
+    return {"users": await _user_summaries(users)}
 
 
 @router.post("/users/admin", status_code=201, response_model=dict)
@@ -115,7 +143,10 @@ async def create_admin_user(
         logger.exception("Admin creation or credential email failed")
         raise HTTPException(status_code=502, detail="Could not send admin credentials; no account was created") from None
 
-    return {"message": "Admin account created and credentials emailed", "user": _user_summary(user)}
+    return {
+        "message": "Admin account created and credentials emailed",
+        "user": await _user_summary(user),
+    }
 
 
 @router.patch("/users/{user_id}/role", response_model=dict)
@@ -128,7 +159,7 @@ async def update_user_role(
     user = await _user_service.update_role(db, user_id, request.role, current_user)
     return {
         "message": "User role updated successfully.",
-        "user": _user_summary(user),
+        "user": await _user_summary(user),
     }
 
 
@@ -142,7 +173,7 @@ async def update_user_status(
     user = await _user_service.update_active_status(db, user_id, request.is_active, current_user)
     return {
         "message": "User account is now active" if user.is_active else "User account has been blocked",
-        "user": _user_summary(user),
+        "user": await _user_summary(user),
     }
 
 
