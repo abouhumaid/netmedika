@@ -84,6 +84,7 @@ export default function RegisterScreen() {
       await saveAuthSession({
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
+        role: response.role,
       });
       router.replace(response.role === 'admin' ? '/admin' : '/(tabs)');
     } catch (error) {

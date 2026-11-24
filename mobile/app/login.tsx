@@ -63,6 +63,7 @@ export default function LoginScreen() {
       await saveAuthSession({
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
+        role: response.user?.role,
       });
       // Redirect admins to admin dashboard, regular users to main tabs
       const destination = response.user?.role === 'admin' ? '/admin' : '/(tabs)';
@@ -82,6 +83,7 @@ export default function LoginScreen() {
       await saveAuthSession({
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
+        role: response.role,
       });
       router.replace(response.role === 'admin' ? '/admin' : '/(tabs)');
     } catch (error) {

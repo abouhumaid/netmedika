@@ -40,8 +40,8 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads/prescriptions"
     max_upload_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
 
-    google_client_id: str = ""
-    apple_client_id: str = ""
+    google_client_id: str = Field(default="", validation_alias="GOOGLE_CLIENT_ID")
+    apple_client_id: str = Field(default="", validation_alias="APPLE_CLIENT_ID")
 
     smtp_host: str = Field(default="", validation_alias="SMTP_HOST")
     smtp_port: int = Field(default=587, gt=0, validation_alias="SMTP_PORT")
@@ -72,6 +72,11 @@ class Settings(BaseSettings):
         if level not in {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}:
             raise ValueError("LOG_LEVEL must be CRITICAL, ERROR, WARNING, INFO, or DEBUG")
         return level
+
+    @field_validator("google_client_id", "apple_client_id", mode="before")
+    @classmethod
+    def normalize_oauth_client_id(cls, value: object) -> str:
+        return str(value or "").strip()
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> Settings:
