@@ -15,8 +15,23 @@ def _make_async_url(url: str) -> str:
     parsed = make_url(url)
     if parsed.drivername in {"sqlite", "sqlite+pysqlite"}:
         return parsed.set(drivername="sqlite+aiosqlite").render_as_string(hide_password=False)
-    if parsed.drivername in {"postgres", "postgresql", "postgresql+psycopg"}:
-        return parsed.set(drivername="postgresql+asyncpg").render_as_string(hide_password=False)
+    if parsed.drivername in {
+        "postgres",
+        "postgresql",
+        "postgresql+asyncpg",
+        "postgresql+psycopg",
+        "postgresql+psycopg2",
+    }:
+        query = dict(parsed.query)
+        # Supabase/libpq URLs commonly use sslmode=require. asyncpg names
+        # this connection option `ssl`, so translate it before SQLAlchemy
+        # passes URL query parameters to asyncpg.connect().
+        sslmode = query.pop("sslmode", None)
+        if sslmode is not None:
+            query.setdefault("ssl", sslmode)
+        return parsed.set(drivername="postgresql+asyncpg", query=query).render_as_string(
+            hide_password=False
+        )
     return url
 
 
