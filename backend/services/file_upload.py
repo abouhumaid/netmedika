@@ -16,13 +16,14 @@ logger = logging.getLogger(__name__)
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 _STATIC_UPLOAD_ROOT = (_BACKEND_DIR / "uploads").resolve()
 _SUPABASE_REF_PREFIX = "supabase://"
+_LOCAL_UPLOAD_PREFIX = "uploads/"
 
 
 class FileUploadService:
     """Validates image content and stores it in Supabase when configured.
 
-    Local disk storage remains available for development. Supabase objects are
-    kept private and represented in the database by ``supabase://`` references.
+    Local disk storage remains available for development. Supabase object paths
+    are stored in the database; the bucket comes from application configuration.
     """
 
     _SIGNATURES: list[tuple[str, str, int, bytes]] = [
@@ -92,7 +93,7 @@ class FileUploadService:
                 contents,
                 mime_type,
             )
-            return f"{_SUPABASE_REF_PREFIX}{settings.supabase_storage_bucket}/{object_path}"
+            return object_path
 
         dest_path = self.upload_dir / unique
 
@@ -113,7 +114,7 @@ class FileUploadService:
         return (Path("uploads") / relative_dir / unique).as_posix()
 
     async def resolve_image_url(self, image_ref: str | None) -> str | None:
-        """Turn a stored Supabase reference into a time-limited download URL."""
+        """Turn a stored Supabase object path into a time-limited download URL."""
         return (await self.resolve_image_urls([image_ref]))[0]
 
     async def resolve_image_urls(self, image_refs: list[str | None]) -> list[str | None]:
@@ -121,13 +122,12 @@ class FileUploadService:
         resolved = list(image_refs)
         grouped: dict[str, list[tuple[int, str]]] = {}
         for index, image_ref in enumerate(image_refs):
-            if not image_ref or not image_ref.startswith(_SUPABASE_REF_PREFIX):
+            if not image_ref:
                 continue
-            bucket_and_path = image_ref[len(_SUPABASE_REF_PREFIX):]
-            bucket, separator, object_path = bucket_and_path.partition("/")
-            if not separator or not bucket or not object_path:
-                logger.error("Invalid Supabase image reference")
-                raise HTTPException(status_code=500, detail="Stored image reference is invalid.")
+            location = self._supabase_location(image_ref)
+            if location is None:
+                continue
+            bucket, object_path = location
             grouped.setdefault(bucket, []).append((index, object_path))
 
         if not grouped:
@@ -169,16 +169,12 @@ class FileUploadService:
         """Best-effort deletion of a local image or Supabase object."""
         if not image_ref:
             return
-        if not image_ref.startswith(_SUPABASE_REF_PREFIX):
+        location = self._supabase_location(image_ref)
+        if location is None:
             if not image_ref.startswith(("https://", "http://")):
                 self.delete_safely(image_ref)
             return
-
-        bucket_and_path = image_ref[len(_SUPABASE_REF_PREFIX):]
-        bucket, separator, object_path = bucket_and_path.partition("/")
-        if not separator or not bucket or not object_path:
-            logger.warning("Could not delete invalid Supabase image reference")
-            return
+        bucket, object_path = location
         try:
             config = self._get_supabase_config(required=True)
             assert config is not None
@@ -214,6 +210,20 @@ class FileUploadService:
                     content=contents,
                 )
                 response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            # Supabase returns a useful JSON error (for example, a bucket MIME
+            # restriction or an object size limit). HTTPStatusError's default
+            # message omits that response body, which otherwise hides the cause.
+            response_body = exc.response.text[:1000]
+            logger.error(
+                "Supabase image upload rejected: status=%s response=%s",
+                exc.response.status_code,
+                response_body,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Image storage rejected the upload. Check the backend logs for the Supabase error.",
+            ) from None
         except httpx.HTTPError:
             logger.exception("Supabase image upload failed")
             raise HTTPException(
@@ -284,6 +294,23 @@ class FileUploadService:
             logger.warning("Could not delete file %s: %s", public_path, exc)
 
     # ----- internals ------------------------------------------------------
+
+    @staticmethod
+    def _supabase_location(image_ref: str) -> tuple[str, str] | None:
+        """Resolve both new object paths and legacy bucket-qualified references."""
+        if image_ref.startswith(("https://", "http://", _LOCAL_UPLOAD_PREFIX)):
+            return None
+        if image_ref.startswith(_SUPABASE_REF_PREFIX):
+            bucket_and_path = image_ref[len(_SUPABASE_REF_PREFIX):]
+            bucket, separator, object_path = bucket_and_path.partition("/")
+            if not separator or not bucket or not object_path:
+                logger.error("Invalid Supabase image reference")
+                raise HTTPException(status_code=500, detail="Stored image reference is invalid.")
+            return bucket, object_path
+        if not image_ref or image_ref.startswith("/"):
+            logger.error("Invalid Supabase object path")
+            raise HTTPException(status_code=500, detail="Stored image reference is invalid.")
+        return settings.supabase_storage_bucket, image_ref
 
     def _detect_mime(self, data: bytes) -> tuple[str, str] | None:
         for mime_type, ext, offset, sig in self._SIGNATURES:

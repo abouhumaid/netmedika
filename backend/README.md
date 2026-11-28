@@ -52,7 +52,8 @@ still succeed and the backend logs that the email notification was skipped.
 ## Image storage
 
 Order prescriptions and profile avatars are stored in the Supabase Storage
-bucket named `uploads`. Configure these values in the FastAPI Cloud backend
+bucket named `uploads`. The orders table stores the prescription object's path
+inside that bucket, not its contents or a signed URL. Configure these values in the FastAPI Cloud backend
 environment (and in `backend/.env` for local development):
 
 ```env
@@ -87,7 +88,8 @@ POST /api/v1/auth/apple
 
 Both endpoints return the same user and session token shape as password login.
 Set `GOOGLE_CLIENT_ID` and `APPLE_CLIENT_ID` to the expected token audiences;
-leave either unset to disable that provider. The server validates signatures,
-issuer, audience, and verified email before creating or signing into a customer
-account. A social account has no password until the user sets one through a
-separate account recovery flow.
+leave either unset to disable that provider. Each setting accepts one client ID
+or a comma-separated list when the app uses different client IDs across
+platforms. The server validates signatures, issuer, audience, and verified
+email before creating or signing into a customer account. A social account has
+no password until the user sets one through a separate account recovery flow.

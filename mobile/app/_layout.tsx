@@ -1,13 +1,17 @@
 import '../global.css';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import StartupSplash from '@/components/StartupSplash';
 import { initializeAuthSession } from '@/lib/auth-session';
+
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+SplashScreen.setOptions({ duration: 250, fade: true });
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -15,21 +19,26 @@ export default function RootLayout() {
 
   useEffect(() => {
     let mounted = true;
-    initializeAuthSession().finally(() => {
-      if (mounted) setAuthReady(true);
-    });
+    let finishTimer: ReturnType<typeof setTimeout> | undefined;
+
+    async function prepareApp() {
+      await initializeAuthSession().catch(() => undefined);
+      await SplashScreen.hideAsync().catch(() => undefined);
+      finishTimer = setTimeout(() => {
+        if (mounted) setAuthReady(true);
+      }, 1400);
+    }
+
+    void prepareApp();
 
     return () => {
       mounted = false;
+      if (finishTimer) clearTimeout(finishTimer);
     };
   }, []);
 
   if (!authReady) {
-    return (
-      <View className="flex-1 items-center justify-center bg-[#F4FFFC]">
-        <ActivityIndicator color="#0F766E" />
-      </View>
-    );
+    return <StartupSplash />;
   }
 
   return (

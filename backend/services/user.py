@@ -104,8 +104,18 @@ class UserService(BaseService[User]):
         return await self._create_session(db, user)
 
     async def _verify_social_token(self, provider: str, id_token: str) -> dict:
-        client_id = settings.google_client_id if provider == "google" else settings.apple_client_id
-        if not client_id:
+        if provider not in {"google", "apple"}:
+            raise HTTPException(status_code=400, detail="Unsupported sign-in provider")
+
+        configured_client_ids = (
+            settings.google_client_id if provider == "google" else settings.apple_client_id
+        )
+        client_ids = {
+            client_id.strip()
+            for client_id in configured_client_ids.split(",")
+            if client_id.strip()
+        }
+        if not client_ids:
             raise HTTPException(status_code=503, detail=f"{provider.title()} sign-in is not configured")
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -113,7 +123,7 @@ class UserService(BaseService[User]):
                     response = await client.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
                     response.raise_for_status()
                     claims = response.json()
-                    if claims.get("aud") != client_id:
+                    if claims.get("aud") not in client_ids:
                         raise ValueError("Wrong audience")
                     if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
                         raise ValueError("Wrong issuer")
@@ -129,7 +139,7 @@ class UserService(BaseService[User]):
                     id_token,
                     key,
                     algorithms=["RS256"],
-                    audience=client_id,
+                    audience=sorted(client_ids),
                     issuer="https://appleid.apple.com",
                 )
                 return claims
