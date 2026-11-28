@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads/prescriptions"
     max_upload_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
     supabase_url: str = Field(default="", validation_alias="SUPABASE_URL")
+    supabase_secret_key: SecretStr = Field(
+        default=SecretStr(""), validation_alias="SUPABASE_SECRET_KEY"
+    )
     supabase_service_role_key: SecretStr = Field(
         default=SecretStr(""), validation_alias="SUPABASE_SERVICE_ROLE_KEY"
     )

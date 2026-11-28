@@ -212,10 +212,16 @@ class FileUploadService:
 
     def _get_supabase_config(self) -> tuple[str, str]:
         base_url = settings.supabase_url.strip().rstrip("/")
-        service_key = settings.supabase_service_role_key.get_secret_value().strip()
+        service_key = (
+            settings.supabase_secret_key.get_secret_value().strip()
+            or settings.supabase_service_role_key.get_secret_value().strip()
+        )
         if base_url and service_key:
             return base_url, service_key
-        logger.error("Supabase Storage requires both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
+        logger.error(
+            "Supabase Storage requires SUPABASE_URL and either SUPABASE_SECRET_KEY "
+            "or SUPABASE_SERVICE_ROLE_KEY"
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Image storage is not configured.",

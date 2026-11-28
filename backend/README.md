@@ -58,13 +58,17 @@ the FastAPI Cloud backend environment and in `backend/.env` for local developmen
 
 ```env
 SUPABASE_URL=https://your-project-ref.supabase.co
+# Use the current secret key, or the legacy service-role key below.
+SUPABASE_SECRET_KEY=your-server-only-secret-key
 SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 SUPABASE_STORAGE_BUCKET=uploads
 SUPABASE_SIGNED_URL_EXPIRY_SECONDS=3600
 ```
 
-Keep the bucket private and keep `SUPABASE_SERVICE_ROLE_KEY` server-side. All
-uploaded images go to this bucket; the API stores only object paths in the
+Keep the bucket private and keep the secret or service-role key server-side.
+The API accepts either `SUPABASE_SECRET_KEY` or the legacy
+`SUPABASE_SERVICE_ROLE_KEY` and prefers `SUPABASE_SECRET_KEY` when both are set.
+All uploaded images go to this bucket; the API stores only object paths in the
 database and returns short-lived signed URLs from authorized app endpoints.
 Uploads fail clearly when Storage is not configured.
 
