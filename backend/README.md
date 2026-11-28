@@ -53,8 +53,8 @@ still succeed and the backend logs that the email notification was skipped.
 
 Order prescriptions and profile avatars are stored in the Supabase Storage
 bucket named `uploads`. The orders table stores the prescription object's path
-inside that bucket, not its contents or a signed URL. Configure these values in the FastAPI Cloud backend
-environment (and in `backend/.env` for local development):
+inside that bucket, not its contents or a signed URL. Configure these values in
+the FastAPI Cloud backend environment and in `backend/.env` for local development:
 
 ```env
 SUPABASE_URL=https://your-project-ref.supabase.co
@@ -63,12 +63,10 @@ SUPABASE_STORAGE_BUCKET=uploads
 SUPABASE_SIGNED_URL_EXPIRY_SECONDS=3600
 ```
 
-Keep the bucket private and keep `SUPABASE_SERVICE_ROLE_KEY` server-side. The
-API stores object references in the database and returns short-lived signed
-URLs to authorized app endpoints. Local development falls back to the backend
-`uploads/` directory when the Supabase settings are absent. Set `ENV=production`
-in FastAPI Cloud so a missing Storage configuration fails clearly instead of
-writing uploads to the deployment's local filesystem.
+Keep the bucket private and keep `SUPABASE_SERVICE_ROLE_KEY` server-side. All
+uploaded images go to this bucket; the API stores only object paths in the
+database and returns short-lived signed URLs from authorized app endpoints.
+Uploads fail clearly when Storage is not configured.
 
 ## Authentication
 

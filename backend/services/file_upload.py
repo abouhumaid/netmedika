@@ -80,38 +80,19 @@ class FileUploadService:
             else f"{uuid.uuid4().hex[:8]}{file_ext}"
         )
         supabase_config = self._get_supabase_config()
-        if supabase_config is not None:
-            if folder not in {"orders", "profiles", "uploads"}:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid upload folder.",
-                )
-            object_path = f"{folder}/{unique}"
-            await self._upload_to_supabase(
-                supabase_config,
-                object_path,
-                contents,
-                mime_type,
-            )
-            return object_path
-
-        dest_path = self.upload_dir / unique
-
-        # Path-traversal guard: resolved target must remain inside upload_dir.
-        try:
-            dest_path.resolve().relative_to(self.upload_dir)
-        except ValueError as exc:
+        if folder not in {"orders", "profiles", "uploads"}:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid file path detected.",
-            ) from exc
-
-        dest_path.write_bytes(contents)
-        # Public paths are relative to the static ``/uploads`` mount in
-        # backend/main.py. Persisting a backend-relative path keeps response
-        # URLs consistent regardless of the process working directory.
-        relative_dir = self.upload_dir.relative_to(_STATIC_UPLOAD_ROOT)
-        return (Path("uploads") / relative_dir / unique).as_posix()
+                detail="Invalid upload folder.",
+            )
+        object_path = f"{folder}/{unique}"
+        await self._upload_to_supabase(
+            supabase_config,
+            object_path,
+            contents,
+            mime_type,
+        )
+        return object_path
 
     async def resolve_image_url(self, image_ref: str | None) -> str | None:
         """Turn a stored Supabase object path into a time-limited download URL."""
@@ -133,8 +114,7 @@ class FileUploadService:
         if not grouped:
             return resolved
 
-        config = self._get_supabase_config(required=True)
-        assert config is not None
+        config = self._get_supabase_config()
         base_url, service_key = config
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
@@ -176,8 +156,7 @@ class FileUploadService:
             return
         bucket, object_path = location
         try:
-            config = self._get_supabase_config(required=True)
-            assert config is not None
+            config = self._get_supabase_config()
             base_url, service_key = config
             async with httpx.AsyncClient(timeout=20.0) as client:
                 response = await client.delete(
@@ -231,18 +210,11 @@ class FileUploadService:
                 detail="Image storage is temporarily unavailable.",
             ) from None
 
-    def _get_supabase_config(self, required: bool = False) -> tuple[str, str] | None:
+    def _get_supabase_config(self) -> tuple[str, str]:
         base_url = settings.supabase_url.strip().rstrip("/")
         service_key = settings.supabase_service_role_key.get_secret_value().strip()
         if base_url and service_key:
             return base_url, service_key
-        if (
-            not base_url
-            and not service_key
-            and not required
-            and settings.env != "production"
-        ):
-            return None
         logger.error("Supabase Storage requires both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
